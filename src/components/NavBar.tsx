@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Wallet, FolderPlus, LogOut } from "lucide-react";
+import { LayoutGrid, Wallet, FolderPlus, Store, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import Logo from "@/components/Logo";
 
 const TABS = [
   { href: "/", label: "Dashboard", icon: Wallet },
   { href: "/sets", label: "Sets", icon: LayoutGrid },
   { href: "/collection", label: "Collection", icon: FolderPlus },
+  { href: "/store", label: "Store", icon: Store },
 ];
 
 export default function NavBar() {
@@ -26,7 +28,7 @@ export default function NavBar() {
     <>
       <header className="hidden md:flex items-center justify-between border-b border-border px-6 py-4 max-w-3xl w-full mx-auto">
         <div className="flex items-center gap-2 font-semibold text-xl">
-          <span className="h-2.5 w-2.5 rounded-full brand-gradient" />
+          <Logo size={28} />
           BinderBuddy
         </div>
         <nav className="flex gap-1">
@@ -55,7 +57,7 @@ export default function NavBar() {
 
       <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 font-semibold text-lg">
-          <span className="h-2 w-2 rounded-full brand-gradient" />
+          <Logo size={24} />
           BinderBuddy
         </div>
         <button onClick={logout} className="text-muted">

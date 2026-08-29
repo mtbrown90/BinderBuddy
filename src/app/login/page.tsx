@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { login } from "./actions";
+import Logo from "@/components/Logo";
 
 export default function LoginPage() {
   const [state, formAction, pending] = useActionState(login, undefined);
@@ -11,7 +12,7 @@ export default function LoginPage() {
     <div className="max-w-sm mx-auto mt-16 flex flex-col gap-6">
       <div className="text-center">
         <div className="flex items-center justify-center gap-2 font-semibold text-2xl mb-1">
-          <span className="h-2.5 w-2.5 rounded-full brand-gradient" />
+          <Logo size={32} />
           BinderBuddy
         </div>
         <p className="text-muted text-sm">Log in to your collection</p>
