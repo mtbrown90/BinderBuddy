@@ -10,11 +10,12 @@ export async function addOfficialCardToCollection(formData: FormData) {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
+  const cardId = String(formData.get("cardId"));
+
   const { error } = await supabase.from("collection_entries").insert({
     user_id: user.id,
-    source: "api",
-    external_card_id: String(formData.get("cardId")),
-    external_source: "pokemontcg.io",
+    external_card_id: cardId,
+    external_source: cardId.startsWith("manual-") ? "manual" : "pokemontcg.io",
     variation_type: String(formData.get("variationType")),
     card_name: String(formData.get("cardName")),
     set_name: String(formData.get("setName")),

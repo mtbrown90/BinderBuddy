@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { X } from "lucide-react";
 import { CONDITIONS } from "@/types";
-import { addOfficialCardToCollection } from "./actions";
+import { addOfficialCardToCollection } from "@/app/sets/[setId]/actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 

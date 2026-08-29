@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon } from "lucide-react";
+import { Check, ImageIcon } from "lucide-react";
 
 function isHoloLabel(label?: string | null) {
   if (!label) return false;
@@ -28,12 +28,14 @@ export default function CardTile({
   imageUrl,
   variationLabel,
   subtitle,
+  owned,
   onClick,
 }: {
   name: string;
   imageUrl?: string | null;
   variationLabel?: string | null;
   subtitle?: string;
+  owned?: boolean;
   onClick?: () => void;
 }) {
   const holo = isHoloLabel(variationLabel);
@@ -42,7 +44,7 @@ export default function CardTile({
       <div
         className={`relative aspect-[5/7] bg-panel-2 border border-border rounded-lg overflow-hidden ${
           holo ? "shadow-[0_0_0_1.5px_var(--teal),0_0_18px_-4px_rgba(193,53,132,0.6)]" : ""
-        }`}
+        } ${owned ? "ring-2 ring-good" : ""}`}
       >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -57,6 +59,11 @@ export default function CardTile({
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <ImageIcon size={22} className="text-muted" />
+          </div>
+        )}
+        {owned && (
+          <div className="absolute top-1 right-1 bg-good rounded-full p-0.5">
+            <Check size={11} className="text-[#0b0c14]" strokeWidth={3} />
           </div>
         )}
       </div>

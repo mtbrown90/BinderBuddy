@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CardTile from "@/components/CardTile";
-import AddCardModal from "./AddCardModal";
+import AddCardModal from "@/components/AddCardModal";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type GridCard = {

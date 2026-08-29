@@ -1,3 +1,5 @@
+// Suggested values for the admin-only "add a card the API is missing" form
+// — freeform text underneath, this is just a starting list.
 export const VARIATION_TYPES = [
   "Normal",
   "Holofoil",
@@ -22,10 +24,8 @@ export type Condition = (typeof CONDITIONS)[number];
 export type CollectionEntry = {
   id: string;
   user_id: string;
-  source: "api" | "custom";
-  external_card_id: string | null;
-  external_source: string | null;
-  custom_variation_id: string | null;
+  external_card_id: string;
+  external_source: string;
   variation_type: string;
   card_name: string;
   set_name: string | null;
@@ -40,33 +40,41 @@ export type CollectionEntry = {
   updated_at: string;
 };
 
-export type CustomSet = {
+export type MasterSet = {
   id: string;
   user_id: string;
   name: string;
-  game: string;
-  publisher: string | null;
   description: string | null;
-  cover_image_url: string | null;
   created_at: string;
 };
 
-export type CustomCard = {
+export type MasterSetCard = {
   id: string;
-  custom_set_id: string;
-  name: string;
-  card_number: string | null;
-  rarity: string | null;
-  supertype: string | null;
-  base_image_url: string | null;
-  created_at: string;
-};
-
-export type CustomVariation = {
-  id: string;
-  custom_card_id: string;
+  master_set_id: string;
+  external_card_id: string;
+  external_source: string;
   variation_type: string;
-  market_price: number | null;
+  card_name: string;
+  set_name: string | null;
+  card_number: string | null;
   image_url: string | null;
+  market_price: number | null;
+  added_via: "manual" | "auto_purchase";
   created_at: string;
+};
+
+export type PurchaseStatus = "pending" | "completed" | "failed" | "refunded";
+
+export type MastersetPurchase = {
+  id: string;
+  user_id: string;
+  master_set_id: string;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  amount_cents: number;
+  currency: string;
+  status: PurchaseStatus;
+  query_names: string[];
+  created_at: string;
+  completed_at: string | null;
 };
