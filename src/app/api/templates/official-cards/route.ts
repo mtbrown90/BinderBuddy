@@ -1,7 +1,12 @@
 import ExcelJS from "exceljs";
 import { CONDITIONS } from "@/types";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 export async function GET() {
+  if (!(await isCurrentUserAdmin())) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Cards");
 

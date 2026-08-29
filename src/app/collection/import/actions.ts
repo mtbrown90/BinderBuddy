@@ -3,6 +3,7 @@
 import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import { findCardCandidates, cardVariations, type PokemonCard } from "@/lib/pokemontcg";
 
 export type ImportResult = {
@@ -59,6 +60,7 @@ export async function importOfficialCards(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return { error: "Not authenticated" };
+  if (!(await isCurrentUserAdmin())) return { error: "Admins only" };
 
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) {
@@ -178,7 +180,6 @@ export async function importOfficialCards(
 
     const { error } = await supabase.from("collection_entries").insert({
       user_id: user.id,
-      source: "api",
       external_card_id: card.id,
       external_source: "pokemontcg.io",
       variation_type: variation.label,

@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
+import { isCurrentUserAdmin } from "@/lib/admin";
 import ImportForm from "./ImportForm";
 
-export default function ImportOfficialCardsPage() {
+export default async function ImportOfficialCardsPage() {
+  if (!(await isCurrentUserAdmin())) redirect("/collection");
+
   return (
     <div>
       <Link href="/collection" className="flex items-center gap-1 text-sm text-muted mb-3">

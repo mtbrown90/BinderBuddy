@@ -22,6 +22,7 @@ export type PokemonCard = {
   name: string;
   number: string;
   rarity?: string;
+  artist?: string;
   supertype: string;
   set: { id: string; name: string };
   images: { small: string; large: string };
@@ -37,7 +38,7 @@ function headers() {
 // pokemontcg.io is prone to brief 5xx blips, especially without an API key.
 // One retry with a short backoff clears most of them; a 4xx means the
 // request itself is wrong, so those fail immediately.
-async function get<T>(path: string, attempt = 1): Promise<T> {
+async function getRaw(path: string, attempt = 1): Promise<{ data: unknown[]; totalCount: number }> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: headers(),
     next: { revalidate: 60 * 60 * 12 }, // 12h cache — card catalogs rarely change
@@ -45,11 +46,15 @@ async function get<T>(path: string, attempt = 1): Promise<T> {
   if (!res.ok) {
     if (res.status >= 500 && attempt < 3) {
       await new Promise((r) => setTimeout(r, 400 * attempt));
-      return get<T>(path, attempt + 1);
+      return getRaw(path, attempt + 1);
     }
     throw new Error(`pokemontcg.io request failed: ${res.status} ${path}`);
   }
-  const json = await res.json();
+  return res.json();
+}
+
+async function get<T>(path: string): Promise<T> {
+  const json = await getRaw(path);
   return json.data as T;
 }
 
@@ -79,6 +84,85 @@ export async function searchCards(query: string): Promise<PokemonCard[]> {
 
 function escapeQueryValue(value: string) {
   return value.replace(/"/g, '\\"');
+}
+
+// Every official printing whose name exactly matches (used by the paid
+// auto-populate feature — deliberately exact, not the wildcard substring
+// match searchCards() uses for interactive search, so "Piplup" doesn't
+// also pull in unrelated cards that merely mention it).
+export async function findAllCardsByName(name: string): Promise<PokemonCard[]> {
+  const pageSize = 250;
+  const q = `name:"${escapeQueryValue(name)}"`;
+  const all: PokemonCard[] = [];
+
+  for (let page = 1; page <= 10; page++) {
+    const json = await getRaw(`/cards?q=${encodeURIComponent(q)}&pageSize=${pageSize}&page=${page}`);
+    const batch = json.data as PokemonCard[];
+    all.push(...batch);
+    if (batch.length < pageSize || all.length >= json.totalCount) break;
+  }
+
+  return all;
+}
+
+export const POKEMON_TYPES = [
+  "Colorless",
+  "Darkness",
+  "Dragon",
+  "Fairy",
+  "Fighting",
+  "Fire",
+  "Grass",
+  "Lightning",
+  "Metal",
+  "Psychic",
+  "Water",
+] as const;
+export type PokemonType = (typeof POKEMON_TYPES)[number];
+
+// Approximate, widely-recognized colors for each energy type — used purely
+// as a UI color-code (chips, badges), not an official asset.
+export const TYPE_COLORS: Record<PokemonType, string> = {
+  Colorless: "#C7C6B9",
+  Darkness: "#5B4A6F",
+  Dragon: "#8B7FD6",
+  Fairy: "#F0A6C8",
+  Fighting: "#C77B3D",
+  Fire: "#F0803C",
+  Grass: "#4FC08D",
+  Lightning: "#F2D94E",
+  Metal: "#9FA8B5",
+  Psychic: "#B15DC2",
+  Water: "#4A90D9",
+};
+
+// Shared by the "bulk" auto-populate lookups (by type, by artist) — both can
+// run to hundreds or low thousands of cards, so this caps higher (up to
+// 5,000 cards / 20 pages) than findAllCardsByName, with headroom for future
+// sets.
+async function findAllCardsByField(field: string, value: string): Promise<PokemonCard[]> {
+  const pageSize = 250;
+  const q = `${field}:"${escapeQueryValue(value)}"`;
+  const all: PokemonCard[] = [];
+
+  for (let page = 1; page <= 20; page++) {
+    const json = await getRaw(`/cards?q=${encodeURIComponent(q)}&pageSize=${pageSize}&page=${page}`);
+    const batch = json.data as PokemonCard[];
+    all.push(...batch);
+    if (batch.length < pageSize || all.length >= json.totalCount) break;
+  }
+
+  return all;
+}
+
+// Every official printing of a given energy type.
+export async function findAllCardsByType(type: string): Promise<PokemonCard[]> {
+  return findAllCardsByField("types", type);
+}
+
+// Every official printing illustrated by a given artist.
+export async function findAllCardsByArtist(artist: string): Promise<PokemonCard[]> {
+  return findAllCardsByField("artist", artist);
 }
 
 // Used by spreadsheet import: looks up official cards by name, optionally
