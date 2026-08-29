@@ -27,14 +27,22 @@ export default async function SetDetailPage({
     );
   }
 
-  const gridCards = cards.map((c) => ({
-    id: c.id,
-    name: c.name,
-    number: c.number,
-    setName: set.name,
-    imageUrl: c.images.small,
-    variations: cardVariations(c),
-  }));
+  // One tile per printing, not per card number — a card with both a Normal
+  // and a Reverse Holo run shows as two adjacent tiles (same number,
+  // different variation badge), matching how they're actually collected.
+  const gridCards = cards.flatMap((c) => {
+    const variations = cardVariations(c);
+    return variations.map((v) => ({
+      id: c.id,
+      name: c.name,
+      number: c.number,
+      setName: set.name,
+      imageUrl: c.images.small,
+      variations,
+      variationKey: v.key,
+      variationLabel: v.label,
+    }));
+  });
 
   return (
     <div>
@@ -46,7 +54,9 @@ export default async function SetDetailPage({
         <img src={set.images.logo} alt={set.name} className="h-9 object-contain" />
         <div>
           <h1 className="font-semibold text-lg leading-tight">{set.name}</h1>
-          <p className="text-xs text-muted">{set.total} cards · {set.releaseDate}</p>
+          <p className="text-xs text-muted">
+            {gridCards.length} cards ({set.total} numbers) · {set.releaseDate}
+          </p>
         </div>
       </div>
       <CardGrid cards={gridCards} />

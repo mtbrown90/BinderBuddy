@@ -9,6 +9,7 @@ type Variation = { key: string; label: string; marketPrice: number | null };
 
 export default function AddCardModal({
   card,
+  initialVariationKey,
   onClose,
 }: {
   card: {
@@ -18,9 +19,10 @@ export default function AddCardModal({
     imageUrl: string;
     variations: Variation[];
   };
+  initialVariationKey?: string;
   onClose: () => void;
 }) {
-  const [variationKey, setVariationKey] = useState(card.variations[0]?.key ?? "normal");
+  const [variationKey, setVariationKey] = useState(initialVariationKey ?? card.variations[0]?.key ?? "normal");
   const [condition, setCondition] = useState<string>("Near Mint");
   const [pending, startTransition] = useTransition();
   const variation = card.variations.find((v) => v.key === variationKey) ?? card.variations[0];
