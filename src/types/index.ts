@@ -21,6 +21,27 @@ export const CONDITIONS = [
 ] as const;
 export type Condition = (typeof CONDITIONS)[number];
 
+// pokemontcg.io's market price is a single TCGplayer figure standardized to
+// Near Mint — there's no real per-condition pricing in that data source.
+// These are widely-used community rule-of-thumb discounts off the Near
+// Mint price, not authoritative market data — always label them as an
+// estimate in the UI rather than presenting them as real prices.
+export const CONDITION_PRICE_MULTIPLIERS: Record<Condition, number> = {
+  Mint: 1,
+  "Near Mint": 1,
+  "Lightly Played": 0.85,
+  "Moderately Played": 0.7,
+  "Heavily Played": 0.5,
+  Damaged: 0.3,
+};
+
+export function conditionAdjustedPrice(nearMintPrice: number, condition: string): number {
+  const multiplier = CONDITION_PRICE_MULTIPLIERS[condition as Condition] ?? 1;
+  return Math.round(nearMintPrice * multiplier * 100) / 100;
+}
+
+export type CollectionStatus = "owned" | "sold" | "traded";
+
 export type CollectionEntry = {
   id: string;
   user_id: string;
@@ -36,6 +57,13 @@ export type CollectionEntry = {
   market_price: number | null;
   date_acquired: string | null;
   notes: string | null;
+  status: CollectionStatus;
+  sold_date: string | null;
+  sold_price: number | null;
+  traded_date: string | null;
+  traded_for_card_name: string | null;
+  traded_for_card_value: number | null;
+  traded_cash_received: number | null;
   created_at: string;
   updated_at: string;
 };

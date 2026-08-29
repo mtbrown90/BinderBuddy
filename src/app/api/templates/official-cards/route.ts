@@ -49,7 +49,7 @@ export async function GET() {
   notes.columns = [{ key: "text", width: 95 }];
   notes.addRows([
     { text: "How to use this template:" },
-    { text: "- One row per card/variation you own. Image and current market price are looked up automatically from the Pokémon TCG API — do not enter them yourself." },
+    { text: "- One row per card/variation you own. Image and current market price are looked up automatically from the Pokémon TCG API — do not enter them yourself. That API only prices Near Mint, so the saved market price is adjusted for the Condition column using a rough estimate (not a real quoted price) when it's anything other than Mint/Near Mint." },
     { text: "- Card Name is required." },
     { text: "- Set Name and Card Number are strongly recommended. Many card names are reprinted across sets, and some sets even reprint the same name multiple times (alt art, secret rare) — without both, the wrong printing may get matched." },
     { text: "- Variation Type should match how that printing is sold, e.g. Normal, Holofoil, Reverse Holo, 1st Edition Holofoil. If left blank, Normal is assumed." },

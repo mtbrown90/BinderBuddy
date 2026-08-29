@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
 import { findCardCandidates, cardVariations, type PokemonCard } from "@/lib/pokemontcg";
+import { conditionAdjustedPrice } from "@/types";
 
 export type ImportResult = {
   error?: string;
@@ -189,7 +190,8 @@ export async function importOfficialCards(
       condition: row.condition,
       quantity: row.quantity,
       price_paid: row.pricePaid,
-      market_price: variation.marketPrice,
+      market_price:
+        variation.marketPrice != null ? conditionAdjustedPrice(variation.marketPrice, row.condition) : null,
       date_acquired: row.dateAcquired || null,
     });
 

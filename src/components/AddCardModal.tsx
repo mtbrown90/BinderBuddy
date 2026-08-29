@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { X } from "lucide-react";
-import { CONDITIONS } from "@/types";
+import { CONDITIONS, conditionAdjustedPrice } from "@/types";
 import { addOfficialCardToCollection } from "@/app/sets/[setId]/actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
@@ -21,8 +21,12 @@ export default function AddCardModal({
   onClose: () => void;
 }) {
   const [variationKey, setVariationKey] = useState(card.variations[0]?.key ?? "normal");
+  const [condition, setCondition] = useState<string>("Near Mint");
   const [pending, startTransition] = useTransition();
   const variation = card.variations.find((v) => v.key === variationKey) ?? card.variations[0];
+
+  const nearMintPrice = variation?.marketPrice ?? null;
+  const estimatedPrice = nearMintPrice != null ? conditionAdjustedPrice(nearMintPrice, condition) : null;
 
   function handleSubmit(formData: FormData) {
     formData.set("cardId", card.id);
@@ -30,7 +34,7 @@ export default function AddCardModal({
     formData.set("setName", card.setName);
     formData.set("imageUrl", card.imageUrl);
     formData.set("variationType", variation?.label ?? "Normal");
-    formData.set("marketPrice", variation?.marketPrice != null ? String(variation.marketPrice) : "");
+    formData.set("marketPrice", estimatedPrice != null ? String(estimatedPrice) : "");
     startTransition(async () => {
       await addOfficialCardToCollection(formData);
       onClose();
@@ -60,7 +64,7 @@ export default function AddCardModal({
             >
               {card.variations.map((v) => (
                 <option key={v.key} value={v.key}>
-                  {v.label} {v.marketPrice != null ? `($${v.marketPrice.toFixed(2)})` : ""}
+                  {v.label} {v.marketPrice != null ? `($${v.marketPrice.toFixed(2)} NM)` : ""}
                 </option>
               ))}
             </select>
@@ -81,7 +85,8 @@ export default function AddCardModal({
               Condition
               <select
                 name="condition"
-                defaultValue="Near Mint"
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
                 className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
               >
                 {CONDITIONS.map((c) => (
@@ -92,6 +97,19 @@ export default function AddCardModal({
               </select>
             </label>
           </div>
+
+          {estimatedPrice != null && (
+            <div className="flex items-center justify-between text-xs bg-panel-2 border border-border rounded-lg px-3 py-2">
+              <span className="text-muted">Est. market value ({condition})</span>
+              <span className="font-semibold">${estimatedPrice.toFixed(2)}</span>
+            </div>
+          )}
+          {estimatedPrice != null && condition !== "Near Mint" && condition !== "Mint" && (
+            <p className="text-[10.5px] text-muted -mt-2">
+              pokemontcg.io only prices Near Mint (${nearMintPrice!.toFixed(2)}) — this is a rough
+              condition discount estimate, not a real quoted price.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1.5 text-xs text-muted">

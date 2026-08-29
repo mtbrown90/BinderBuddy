@@ -96,7 +96,9 @@ create table master_set_queries (
 create index idx_master_set_queries_set on master_set_queries(master_set_id);
 
 -- ---------- Collection entries ----------
--- One row per official card+variation a user owns.
+-- One row per official card+variation a user owns (or used to own — sold
+-- and traded entries stay here rather than being deleted, so they still
+-- count toward realized gain/loss).
 create table collection_entries (
     id                uuid primary key default gen_random_uuid(),
     user_id           uuid not null references auth.users(id) on delete cascade,
@@ -116,6 +118,19 @@ create table collection_entries (
     market_price   numeric(10,2),
     date_acquired  date,
     notes          text,
+
+    -- Disposal — a card leaves the active collection either by being sold
+    -- (cash only) or traded (a card, cash, or both). Kept on the same row
+    -- rather than deleted so the dashboard can compute realized gain/loss;
+    -- "Remove from collection" (a hard delete) is a separate action for
+    -- correcting a mistaken entry, not for recording a real sale/trade.
+    status                  text not null default 'owned' check (status in ('owned', 'sold', 'traded')),
+    sold_date               date,
+    sold_price              numeric(10,2),
+    traded_date             date,
+    traded_for_card_name    text,
+    traded_for_card_value   numeric(10,2),
+    traded_cash_received    numeric(10,2),
 
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now()

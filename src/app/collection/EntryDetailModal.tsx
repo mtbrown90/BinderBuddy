@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
-import { X, Trash2 } from "lucide-react";
+import { useState, useTransition } from "react";
+import { X, Trash2, DollarSign, Repeat, Undo2 } from "lucide-react";
 import type { CollectionEntry } from "@/types";
 import CardTile from "@/components/CardTile";
-import { removeCollectionEntry } from "./actions";
+import { removeCollectionEntry, markEntrySold, markEntryTraded, markEntryOwned } from "./actions";
+
+type Mode = "view" | "sell" | "trade";
 
 export default function EntryDetailModal({
   entry,
@@ -13,10 +15,12 @@ export default function EntryDetailModal({
   entry: CollectionEntry;
   onClose: () => void;
 }) {
+  const [mode, setMode] = useState<Mode>("view");
   const [pending, startTransition] = useTransition();
   const paid = Number(entry.price_paid) || 0;
+  const totalCost = paid * entry.quantity;
   const market = Number(entry.market_price) || 0;
-  const diff = market - paid;
+  const unrealized = market - paid;
 
   function handleRemove() {
     startTransition(async () => {
@@ -24,6 +28,33 @@ export default function EntryDetailModal({
       onClose();
     });
   }
+
+  function handleRevert() {
+    startTransition(async () => {
+      await markEntryOwned(entry.id);
+    });
+  }
+
+  function handleSell(formData: FormData) {
+    startTransition(async () => {
+      await markEntrySold(entry.id, formData);
+      setMode("view");
+    });
+  }
+
+  function handleTrade(formData: FormData) {
+    startTransition(async () => {
+      await markEntryTraded(entry.id, formData);
+      setMode("view");
+    });
+  }
+
+  const realized =
+    entry.status === "sold"
+      ? (entry.sold_price ?? 0) - totalCost
+      : entry.status === "traded"
+        ? (entry.traded_cash_received ?? 0) + (entry.traded_for_card_value ?? 0) - totalCost
+        : null;
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-5" onClick={onClose}>
@@ -37,6 +68,7 @@ export default function EntryDetailModal({
             <X size={18} />
           </button>
         </div>
+
         <div className="px-5 py-4 flex gap-4">
           <div className="w-24 shrink-0">
             <CardTile name={entry.card_name} imageUrl={entry.image_url} />
@@ -46,24 +78,194 @@ export default function EntryDetailModal({
             <Row label="Variation" value={entry.variation_type} />
             <Row label="Condition" value={entry.condition} />
             <Row label="Quantity" value={String(entry.quantity)} />
-            <Row label="Price paid" value={`$${paid.toFixed(2)}`} />
-            <Row label="Market price" value={`$${market.toFixed(2)}`} />
-            <Row
-              label="Gain / loss"
-              value={`${diff >= 0 ? "+" : ""}${diff.toFixed(2)}`}
-              valueClassName={diff >= 0 ? "text-good" : "text-bad"}
-            />
+            <Row label="Price paid" value={`$${totalCost.toFixed(2)}`} />
+            {entry.status === "owned" && (
+              <>
+                <Row label="Market price" value={`$${market.toFixed(2)}`} />
+                <Row
+                  label="Gain / loss"
+                  value={`${unrealized >= 0 ? "+" : ""}${unrealized.toFixed(2)}`}
+                  valueClassName={unrealized >= 0 ? "text-good" : "text-bad"}
+                />
+              </>
+            )}
             {entry.date_acquired && <Row label="Acquired" value={entry.date_acquired} />}
+
+            {entry.status === "sold" && (
+              <>
+                <Row label="Sold" value={entry.sold_date ?? "—"} />
+                <Row label="Sold for" value={`$${(entry.sold_price ?? 0).toFixed(2)}`} />
+              </>
+            )}
+            {entry.status === "traded" && (
+              <>
+                <Row label="Traded" value={entry.traded_date ?? "—"} />
+                {entry.traded_for_card_name && (
+                  <Row label="Received card" value={entry.traded_for_card_name} />
+                )}
+                {entry.traded_for_card_value != null && (
+                  <Row label="Received card value" value={`$${entry.traded_for_card_value.toFixed(2)}`} />
+                )}
+                {entry.traded_cash_received != null && (
+                  <Row label="Cash received" value={`$${entry.traded_cash_received.toFixed(2)}`} />
+                )}
+              </>
+            )}
+            {realized != null && (
+              <Row
+                label="Realized gain / loss"
+                value={`${realized >= 0 ? "+" : ""}${realized.toFixed(2)}`}
+                valueClassName={realized >= 0 ? "text-good" : "text-bad"}
+              />
+            )}
           </div>
         </div>
-        <div className="px-5 pb-5">
-          <button
-            onClick={handleRemove}
-            disabled={pending}
-            className="w-full flex items-center justify-center gap-1.5 text-bad border border-bad/40 rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
-          >
-            <Trash2 size={14} /> {pending ? "Removing…" : "Remove from collection"}
-          </button>
+
+        <div className="px-5 pb-5 flex flex-col gap-2">
+          {mode === "view" && entry.status === "owned" && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setMode("sell")}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-panel-2 border border-border rounded-lg py-2.5 text-sm font-semibold"
+              >
+                <DollarSign size={14} /> Mark as sold
+              </button>
+              <button
+                onClick={() => setMode("trade")}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-panel-2 border border-border rounded-lg py-2.5 text-sm font-semibold"
+              >
+                <Repeat size={14} /> Mark as traded
+              </button>
+            </div>
+          )}
+
+          {mode === "sell" && (
+            <form action={handleSell} className="flex flex-col gap-2.5 bg-panel-2 border border-border rounded-xl p-3.5">
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Total sold for ($)
+                <input
+                  name="soldPrice"
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  required
+                  placeholder="0.00"
+                  className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Date sold
+                <input
+                  name="soldDate"
+                  type="date"
+                  className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setMode("view")}
+                  className="flex-1 text-sm font-semibold border border-border rounded-lg py-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="flex-1 brand-gradient text-[#0b0c14] font-bold rounded-lg py-2 text-sm disabled:opacity-60"
+                >
+                  {pending ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {mode === "trade" && (
+            <form
+              action={handleTrade}
+              className="flex flex-col gap-2.5 bg-panel-2 border border-border rounded-xl p-3.5"
+            >
+              <p className="text-[11px] text-muted">
+                Enter a card received, cash received, or both.
+              </p>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Card received
+                <input
+                  name="tradedForCardName"
+                  placeholder="e.g. Charizard VMAX"
+                  className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-2.5">
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  That card&apos;s value ($)
+                  <input
+                    name="tradedForCardValue"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  Cash received ($)
+                  <input
+                    name="tradedCashReceived"
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder="0.00"
+                    className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Date traded
+                <input
+                  name="tradedDate"
+                  type="date"
+                  className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setMode("view")}
+                  className="flex-1 text-sm font-semibold border border-border rounded-lg py-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="flex-1 brand-gradient text-[#0b0c14] font-bold rounded-lg py-2 text-sm disabled:opacity-60"
+                >
+                  {pending ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {mode === "view" && entry.status !== "owned" && (
+            <button
+              onClick={handleRevert}
+              disabled={pending}
+              className="w-full flex items-center justify-center gap-1.5 bg-panel-2 border border-border rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
+            >
+              <Undo2 size={14} /> {pending ? "Reverting…" : "Revert to owned"}
+            </button>
+          )}
+
+          {mode === "view" && (
+            <button
+              onClick={handleRemove}
+              disabled={pending}
+              className="w-full flex items-center justify-center gap-1.5 text-bad border border-bad/40 rounded-lg py-2.5 text-sm font-semibold disabled:opacity-60"
+            >
+              <Trash2 size={14} /> {pending ? "Removing…" : "Remove from collection"}
+            </button>
+          )}
         </div>
       </div>
     </div>
