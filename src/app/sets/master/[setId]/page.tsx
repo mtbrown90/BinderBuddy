@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ChevronLeft, Sparkles, Store } from "lucide-react";
+import { ChevronLeft, FileDown, Sparkles, Store } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
-import type { MasterSet, MasterSetCard } from "@/types";
+import type { MasterSet, MasterSetCard, MastersetPdfPurchase } from "@/types";
 import AddCardSearch from "./AddCardSearch";
 import MasterSetGrid from "./MasterSetGrid";
 import ManualCardForm from "./ManualCardForm";
@@ -19,7 +19,7 @@ export default async function MasterSetDetailPage({
   const { checkout } = await searchParams;
   const supabase = await createClient();
 
-  const [{ data: set }, { data: cards }, { data: entries }, admin] = await Promise.all([
+  const [{ data: set }, { data: cards }, { data: entries }, { data: pdfPurchases }, admin] = await Promise.all([
     supabase.from("master_sets").select("*").eq("id", setId).single(),
     supabase
       .from("master_set_cards")
@@ -28,6 +28,13 @@ export default async function MasterSetDetailPage({
       .order("card_name", { ascending: true })
       .returns<MasterSetCard[]>(),
     supabase.from("collection_entries").select("external_card_id, variation_type"),
+    supabase
+      .from("masterset_pdf_purchases")
+      .select("*")
+      .eq("master_set_id", setId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .returns<MastersetPdfPurchase[]>(),
     isCurrentUserAdmin(),
   ]);
 
@@ -57,14 +64,32 @@ export default async function MasterSetDetailPage({
 
       {checkout === "success" && (
         <div className="bg-panel-2 border border-teal/40 text-sm rounded-xl px-4 py-3 mb-5">
-          Payment received — your cards are being added now. Small purchases finish in seconds; a full
-          type or artist purchase (hundreds to thousands of cards) can take a few minutes. Refresh to
-          check.
+          Payment received — for an auto-populate purchase, your cards are being added now (small
+          purchases finish in seconds; a full type or artist purchase can take a few minutes). For a
+          placeholder PDF, your download will appear below shortly. Refresh to check.
         </div>
       )}
       {checkout === "cancelled" && (
         <div className="bg-panel-2 border border-border text-sm text-muted rounded-xl px-4 py-3 mb-5">
           Checkout cancelled — no charge was made.
+        </div>
+      )}
+
+      {pdfPurchases && pdfPurchases.length > 0 && (
+        <div className="bg-panel border border-border rounded-2xl p-4 mb-5">
+          <h2 className="font-semibold text-sm mb-3">Your placeholder PDFs</h2>
+          <div className="flex flex-col gap-2">
+            {pdfPurchases.map((p) => (
+              <a
+                key={p.id}
+                href={`/api/masterset-pdf/${p.id}`}
+                className="flex items-center gap-1.5 text-sm font-semibold bg-panel-2 border border-border rounded-lg px-3 py-2"
+              >
+                <FileDown size={14} className="text-teal" /> Download (
+                {p.style === "color" ? "full color" : p.style === "bw" ? "black & white" : "text-only"})
+              </a>
+            ))}
+          </div>
         </div>
       )}
 

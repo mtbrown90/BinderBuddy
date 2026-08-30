@@ -34,6 +34,7 @@ async function upsertCardRows(
       card_number: c.number,
       set_printed_total: c.set.printedTotal,
       image_url: c.images.small,
+      image_url_large: c.images.large,
       market_price: v.marketPrice,
       added_via: "auto_purchase" as const,
     }))
@@ -73,10 +74,31 @@ export async function POST(req: NextRequest) {
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
+  const admin = createAdminClient();
+
+  const pdfPurchaseId = session.metadata?.pdfPurchaseId;
+  if (pdfPurchaseId) {
+    // No card upserting for this product — the PDF is generated on demand
+    // at download time from whatever the checklist looks like then, so
+    // fulfillment here is just flipping the purchase to completed.
+    await admin
+      .from("masterset_pdf_purchases")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+        stripe_payment_intent_id:
+          typeof session.payment_intent === "string"
+            ? session.payment_intent
+            : (session.payment_intent?.id ?? null),
+      })
+      .eq("id", pdfPurchaseId)
+      .neq("status", "completed");
+
+    return NextResponse.json({ received: true });
+  }
+
   const purchaseId = session.metadata?.purchaseId;
   if (!purchaseId) return NextResponse.json({ received: true });
-
-  const admin = createAdminClient();
 
   const { data: purchase } = await admin
     .from("masterset_purchases")

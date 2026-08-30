@@ -34,6 +34,7 @@ export async function addCardToMasterSet(formData: FormData) {
       card_number: card.number,
       set_printed_total: card.set.printedTotal,
       image_url: card.images.small,
+      image_url_large: card.images.large,
       market_price: v.marketPrice,
       added_via: "manual" as const,
     })),
@@ -83,12 +84,13 @@ export async function addManualCardToMasterSet(formData: FormData) {
 
 const REFRESH_CHUNK_SIZE = 500;
 
-// Re-fetches live prices for every API-sourced card in this checklist and
-// snapshots the result onto each row. Needed because market_price is only
-// ever captured at add time — a checklist built via search-add or a Store
-// auto-populate purchase before this snapshotting existed (or since gone
-// stale) would otherwise carry null/outdated prices forever, since nothing
-// else ever revisits an already-added row.
+// Re-fetches live prices (and images) for every API-sourced card in this
+// checklist and snapshots the result onto each row. Needed because
+// market_price/image_url_large are only ever captured at add time — a
+// checklist built via search-add or a Store auto-populate purchase before
+// this snapshotting existed (or since gone stale) would otherwise carry
+// null/outdated data forever, since nothing else ever revisits an
+// already-added row.
 export async function refreshMasterSetPrices(
   masterSetId: string
 ): Promise<{ updated: number } | { error: string }> {
@@ -129,7 +131,8 @@ export async function refreshMasterSetPrices(
         set_name: row.set_name,
         card_number: row.card_number,
         set_printed_total: row.set_printed_total,
-        image_url: row.image_url,
+        image_url: card.images.small,
+        image_url_large: card.images.large,
         market_price: variation.marketPrice,
         added_via: row.added_via,
       },

@@ -4,6 +4,7 @@ import type { MasterSet } from "@/types";
 import PokemonAutoPopulateForm from "./PokemonAutoPopulateForm";
 import TypeAutoPopulateForm from "./TypeAutoPopulateForm";
 import ArtistAutoPopulateForm from "./ArtistAutoPopulateForm";
+import PlaceholderPdfForm from "./PlaceholderPdfForm";
 
 export default async function StorePage() {
   const supabase = await createClient();
@@ -38,6 +39,11 @@ export default async function StorePage() {
         <div className="bg-panel border border-border rounded-2xl p-4">
           <h2 className="font-semibold text-sm mb-3">Auto-populate by artist</h2>
           <ArtistAutoPopulateForm masterSets={sets} />
+        </div>
+
+        <div className="bg-panel border border-border rounded-2xl p-4">
+          <h2 className="font-semibold text-sm mb-3">Printable placeholder PDF</h2>
+          <PlaceholderPdfForm masterSets={sets} />
         </div>
       </div>
     </div>

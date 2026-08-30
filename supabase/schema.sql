@@ -70,6 +70,9 @@ create table master_set_cards (
     card_number  text,
     set_printed_total integer,
     image_url    text,
+    -- higher-resolution image, used for the printable placeholder-PDF
+    -- product — the small image_url above is too low-res to print well
+    image_url_large text,
     -- only meaningful for external_source = 'manual' (an admin-added card
     -- filling a gap in pokemontcg.io's catalog) — there's no live API to
     -- price API-sourced cards from here, so this stays null for those.
@@ -165,6 +168,30 @@ create index idx_masterset_purchases_user on masterset_purchases(user_id);
 create index idx_masterset_purchases_set on masterset_purchases(master_set_id);
 create index idx_masterset_purchases_session on masterset_purchases(stripe_checkout_session_id);
 
+-- ---------- Masterset placeholder PDF purchases ----------
+-- Buyable printable placeholder cards for whatever's missing from a
+-- masterset checklist. The PDF itself isn't stored anywhere — it's
+-- regenerated on demand at download time from current checklist data, so
+-- this table only tracks payment status, same pending/completed pattern as
+-- masterset_purchases above.
+create table masterset_pdf_purchases (
+    id                          uuid primary key default gen_random_uuid(),
+    user_id                     uuid not null references auth.users(id) on delete cascade,
+    master_set_id               uuid not null references master_sets(id) on delete cascade,
+    style                       text not null check (style in ('color', 'bw', 'text')),
+    stripe_checkout_session_id  text,
+    stripe_payment_intent_id    text,
+    amount_cents                integer not null,
+    currency                    text not null default 'usd',
+    status                      text not null default 'pending'
+                                   check (status in ('pending', 'completed', 'failed')),
+    created_at                  timestamptz not null default now(),
+    completed_at                timestamptz
+);
+
+create index idx_masterset_pdf_purchases_user on masterset_pdf_purchases(user_id);
+create index idx_masterset_pdf_purchases_set on masterset_pdf_purchases(master_set_id);
+
 -- ============================================================
 -- Row Level Security — every table is scoped to its owning user.
 -- ============================================================
@@ -175,6 +202,7 @@ alter table master_set_cards enable row level security;
 alter table master_set_queries enable row level security;
 alter table collection_entries enable row level security;
 alter table masterset_purchases enable row level security;
+alter table masterset_pdf_purchases enable row level security;
 
 create policy "read own profile" on profiles
   for select using (auth.uid() = id);
@@ -207,4 +235,9 @@ create policy "manage own collection entries" on collection_entries
 create policy "read own purchases" on masterset_purchases
   for select using (auth.uid() = user_id);
 create policy "create own purchases" on masterset_purchases
+  for insert with check (auth.uid() = user_id);
+
+create policy "read own pdf purchases" on masterset_pdf_purchases
+  for select using (auth.uid() = user_id);
+create policy "create own pdf purchases" on masterset_pdf_purchases
   for insert with check (auth.uid() = user_id);

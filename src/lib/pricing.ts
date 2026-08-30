@@ -24,3 +24,9 @@ export function autoPopulatePriceCents(nameCount: number): number {
 // 141). Priced flat rather than per-card to stay an approachable single
 // purchase, and shared across both since the scale is comparable.
 export const BULK_AUTOPOPULATE_PRICE_CENTS = 1499;
+
+// Printable placeholder-card PDF for whatever's missing from a masterset
+// checklist — flat fee regardless of style (color/bw/text) or how many
+// missing cards/pages it comes out to, deliberately priced under what
+// similar third-party (Etsy-style) placeholder-card products charge.
+export const PLACEHOLDER_PDF_PRICE_CENTS = 200;

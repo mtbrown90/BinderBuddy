@@ -87,6 +87,7 @@ export type MasterSetCard = {
   card_number: string | null;
   set_printed_total: number | null;
   image_url: string | null;
+  image_url_large: string | null;
   market_price: number | null;
   added_via: "manual" | "auto_purchase";
   created_at: string;
@@ -104,6 +105,23 @@ export type MastersetPurchase = {
   currency: string;
   status: PurchaseStatus;
   query_names: string[];
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type PdfStyle = "color" | "bw" | "text";
+export type PdfPurchaseStatus = "pending" | "completed" | "failed";
+
+export type MastersetPdfPurchase = {
+  id: string;
+  user_id: string;
+  master_set_id: string;
+  style: PdfStyle;
+  stripe_checkout_session_id: string | null;
+  stripe_payment_intent_id: string | null;
+  amount_cents: number;
+  currency: string;
+  status: PdfPurchaseStatus;
   created_at: string;
   completed_at: string | null;
 };
