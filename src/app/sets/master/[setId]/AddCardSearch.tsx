@@ -12,6 +12,8 @@ type CardResult = {
   imageUrl: string;
 };
 
+export type SearchMode = "search" | "add";
+
 function useDebounced<T>(value: T, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -24,13 +26,20 @@ function useDebounced<T>(value: T, delayMs: number) {
 export default function AddCardSearch({
   masterSetId,
   existingCardIds,
+  mode,
+  onModeChange,
+  query,
+  onQueryChange,
 }: {
   masterSetId: string;
   existingCardIds: string[];
+  mode: SearchMode;
+  onModeChange: (mode: SearchMode) => void;
+  query: string;
+  onQueryChange: (query: string) => void;
 }) {
-  const [query, setQuery] = useState("");
   const debouncedQuery = useDebounced(query.trim(), 350);
-  const searching = debouncedQuery.length >= 2;
+  const searching = mode === "add" && debouncedQuery.length >= 2;
 
   const [results, setResults] = useState<CardResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -70,18 +79,33 @@ export default function AddCardSearch({
 
   return (
     <div>
-      <div className="relative mb-3">
-        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search official cards to add…"
-          className="w-full bg-panel-2 border border-border rounded-full pl-9 pr-4 py-2 text-sm text-ink placeholder:text-muted"
-        />
+      <div className="flex gap-2 mb-3">
+        <div className="relative flex-1">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder={mode === "search" ? "Search cards in this checklist…" : "Search official cards to add…"}
+            className="w-full bg-panel-2 border border-border rounded-full pl-9 pr-4 py-2 text-sm text-ink placeholder:text-muted"
+          />
+        </div>
+        <select
+          value={mode}
+          onChange={(e) => onModeChange(e.target.value as SearchMode)}
+          className="bg-panel-2 border border-border rounded-full px-3 py-2 text-xs text-ink"
+        >
+          <option value="add">Add a new card</option>
+          <option value="search">Search within set</option>
+        </select>
       </div>
-      <p className="text-[11px] text-muted -mt-2 mb-3">
-        Adding a card adds every known printing of it (Normal, Holofoil, etc.) as separate checklist items.
-      </p>
+      {mode === "add" && (
+        <p className="text-[11px] text-muted -mt-2 mb-3">
+          Adding a card adds every known printing of it (Normal, Holofoil, etc.) as separate checklist items.
+        </p>
+      )}
+      {mode === "search" && (
+        <p className="text-[11px] text-muted -mt-2 mb-3">Filtering the checklist below as you type.</p>
+      )}
 
       {searching && (
         <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">

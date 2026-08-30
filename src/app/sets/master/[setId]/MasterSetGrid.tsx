@@ -67,11 +67,13 @@ export default function MasterSetGrid({
   cards,
   ownedKeys,
   ownedValues,
+  searchQuery = "",
 }: {
   masterSetId: string;
   cards: MasterSetCard[];
   ownedKeys: Set<string>;
   ownedValues: Record<string, number>;
+  searchQuery?: string;
 }) {
   const [open, setOpen] = useState<FullCard | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -109,12 +111,15 @@ export default function MasterSetGrid({
   const costToComplete = cards
     .filter((c) => !isOwned(c))
     .reduce((s, c) => s + (Number(c.market_price) || 0), 0);
+  const searched = searchQuery.trim()
+    ? cards.filter((c) => c.card_name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : cards;
   const visible =
     ownedFilter === "owned"
-      ? cards.filter(isOwned)
+      ? searched.filter(isOwned)
       : ownedFilter === "unowned"
-        ? cards.filter((c) => !isOwned(c))
-        : cards;
+        ? searched.filter((c) => !isOwned(c))
+        : searched;
   const owned = sortCards(visible.filter(isOwned), sort);
   const missing = sortCards(visible.filter((c) => !isOwned(c)), sort);
 

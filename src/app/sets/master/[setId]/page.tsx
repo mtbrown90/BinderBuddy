@@ -1,11 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft, FileDown, Sparkles, Store } from "lucide-react";
+import { ChevronLeft, FileDown, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
 import type { MasterSet, MasterSetCard, MastersetPdfPurchase } from "@/types";
-import AddCardSearch from "./AddCardSearch";
-import MasterSetGrid from "./MasterSetGrid";
-import ManualCardForm from "./ManualCardForm";
+import MasterSetClient from "./MasterSetClient";
 import DeleteMasterSetButton from "./DeleteMasterSetButton";
 
 export default async function MasterSetDetailPage({
@@ -100,30 +98,13 @@ export default async function MasterSetDetailPage({
         </div>
       )}
 
-      <div className="bg-panel border border-border rounded-2xl p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold text-sm">Add cards manually</h2>
-          <Link
-            href="/store"
-            className="flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink"
-          >
-            <Store size={13} /> Bulk-add in the Store
-          </Link>
-        </div>
-        <AddCardSearch masterSetId={setId} existingCardIds={existingCardIds} />
-        {admin && (
-          <div className="mt-3">
-            <ManualCardForm masterSetId={setId} />
-          </div>
-        )}
-      </div>
-
-      <h2 className="font-semibold text-lg mb-3">Checklist</h2>
-      <MasterSetGrid
+      <MasterSetClient
         masterSetId={setId}
         cards={cards ?? []}
+        existingCardIds={existingCardIds}
         ownedKeys={ownedKeys}
         ownedValues={ownedValues}
+        admin={admin}
       />
     </div>
   );
