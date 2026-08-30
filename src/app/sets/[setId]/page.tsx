@@ -36,6 +36,7 @@ export default async function SetDetailPage({
       id: c.id,
       name: c.name,
       number: c.number,
+      printedTotal: set.printedTotal,
       setName: set.name,
       imageUrl: c.images.small,
       variations,

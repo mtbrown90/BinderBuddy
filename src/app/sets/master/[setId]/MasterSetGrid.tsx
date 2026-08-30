@@ -14,6 +14,11 @@ function ownedKey(externalCardId: string, variationType: string) {
   return `${externalCardId}::${variationType.toLowerCase()}`;
 }
 
+function cardSubtitle(c: MasterSetCard) {
+  const number = c.card_number ? `#${c.card_number}${c.set_printed_total ? `/${c.set_printed_total}` : ""}` : null;
+  return [c.set_name, number].filter(Boolean).join(" · ") || undefined;
+}
+
 export default function MasterSetGrid({
   masterSetId,
   cards,
@@ -95,7 +100,7 @@ export default function MasterSetGrid({
             <CardTile
               name={c.card_name}
               imageUrl={c.image_url}
-              subtitle={c.set_name ?? undefined}
+              subtitle={cardSubtitle(c)}
               variationLabel={loadingId === c.id ? "Loading…" : c.variation_type}
               owned={isOwned(c)}
               onClick={() => openCard(c)}

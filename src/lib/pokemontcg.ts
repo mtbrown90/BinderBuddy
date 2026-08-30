@@ -24,7 +24,7 @@ export type PokemonCard = {
   rarity?: string;
   artist?: string;
   supertype: string;
-  set: { id: string; name: string };
+  set: { id: string; name: string; printedTotal: number };
   images: { small: string; large: string };
   tcgplayer?: { url?: string; updatedAt?: string; prices?: PokemonCardPrices };
   cardmarket?: { url?: string; updatedAt?: string; prices?: Record<string, number> };

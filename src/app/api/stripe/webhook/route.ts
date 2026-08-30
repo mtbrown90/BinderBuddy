@@ -32,6 +32,7 @@ async function upsertCardRows(
       card_name: c.name,
       set_name: c.set.name,
       card_number: c.number,
+      set_printed_total: c.set.printedTotal,
       image_url: c.images.small,
       added_via: "auto_purchase" as const,
     }))

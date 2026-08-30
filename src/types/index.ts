@@ -85,6 +85,7 @@ export type MasterSetCard = {
   card_name: string;
   set_name: string | null;
   card_number: string | null;
+  set_printed_total: number | null;
   image_url: string | null;
   market_price: number | null;
   added_via: "manual" | "auto_purchase";

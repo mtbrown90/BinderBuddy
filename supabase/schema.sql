@@ -68,6 +68,7 @@ create table master_set_cards (
     card_name    text not null,
     set_name     text,
     card_number  text,
+    set_printed_total integer,
     image_url    text,
     -- only meaningful for external_source = 'manual' (an admin-added card
     -- filling a gap in pokemontcg.io's catalog) — there's no live API to

@@ -9,6 +9,7 @@ type GridTile = {
   id: string;
   name: string;
   number: string;
+  printedTotal: number;
   setName: string;
   imageUrl: string;
   variations: Variation[];
@@ -27,7 +28,7 @@ export default function CardGrid({ cards }: { cards: GridTile[] }) {
             key={`${c.id}-${c.variationKey}`}
             name={c.name}
             imageUrl={c.imageUrl}
-            subtitle={`#${c.number}`}
+            subtitle={`#${c.number}/${c.printedTotal}`}
             variationLabel={c.variationLabel}
             onClick={() => setOpen(c)}
           />
