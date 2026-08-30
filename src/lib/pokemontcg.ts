@@ -35,17 +35,22 @@ function headers() {
   return key ? { "X-Api-Key": key } : undefined;
 }
 
-// pokemontcg.io is prone to brief 5xx blips, especially without an API key.
-// One retry with a short backoff clears most of them; a 4xx means the
+// pokemontcg.io is prone to 5xx blips that can run for several seconds —
+// larger sets (e.g. Cosmic Eclipse, 236+ cards) are hit hardest, sometimes
+// throwing a run of 500s before a slow-but-successful response finally
+// lands. A short 2-retry budget gives up well before that clears, so this
+// retries more persistently with a growing backoff; a 4xx means the
 // request itself is wrong, so those fail immediately.
+const MAX_ATTEMPTS = 5;
+
 async function getRaw(path: string, attempt = 1): Promise<{ data: unknown[]; totalCount: number }> {
   const res = await fetch(`${BASE_URL}${path}`, {
     headers: headers(),
     next: { revalidate: 60 * 60 * 12 }, // 12h cache — card catalogs rarely change
   });
   if (!res.ok) {
-    if (res.status >= 500 && attempt < 3) {
-      await new Promise((r) => setTimeout(r, 400 * attempt));
+    if (res.status >= 500 && attempt < MAX_ATTEMPTS) {
+      await new Promise((r) => setTimeout(r, 500 * attempt));
       return getRaw(path, attempt + 1);
     }
     throw new Error(`pokemontcg.io request failed: ${res.status} ${path}`);
