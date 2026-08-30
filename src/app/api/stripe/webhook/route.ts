@@ -34,6 +34,7 @@ async function upsertCardRows(
       card_number: c.number,
       set_printed_total: c.set.printedTotal,
       image_url: c.images.small,
+      market_price: v.marketPrice,
       added_via: "auto_purchase" as const,
     }))
   );

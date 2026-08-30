@@ -33,6 +33,7 @@ export async function addCardToMasterSet(formData: FormData) {
       card_number: card.number,
       set_printed_total: card.set.printedTotal,
       image_url: card.images.small,
+      market_price: v.marketPrice,
       added_via: "manual" as const,
     })),
     { onConflict: "master_set_id,external_card_id,variation_type", ignoreDuplicates: true }
