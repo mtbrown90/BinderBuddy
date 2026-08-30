@@ -8,7 +8,15 @@ import type { MasterSetCard } from "@/types";
 import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
-type FullCard = { id: string; name: string; setName: string; imageUrl: string; variations: Variation[] };
+type FullCard = {
+  id: string;
+  name: string;
+  number?: string;
+  printedTotal?: number;
+  setName: string;
+  imageUrl: string;
+  variations: Variation[];
+};
 
 function ownedKey(externalCardId: string, variationType: string) {
   return `${externalCardId}::${variationType.toLowerCase()}`;
@@ -113,6 +121,8 @@ export default function MasterSetGrid({
       setOpen({
         id: c.external_card_id,
         name: c.card_name,
+        number: c.card_number ?? undefined,
+        printedTotal: c.set_printed_total ?? undefined,
         setName: c.set_name ?? "",
         imageUrl: c.image_url ?? "",
         variations: [{ key: "manual", label: c.variation_type, marketPrice: c.market_price }],
@@ -138,6 +148,8 @@ export default function MasterSetGrid({
       setOpen({
         id: c.external_card_id,
         name: c.card_name,
+        number: c.card_number ?? undefined,
+        printedTotal: c.set_printed_total ?? undefined,
         setName: c.set_name ?? "",
         imageUrl: c.image_url ?? "",
         variations: [{ key: "normal", label: c.variation_type, marketPrice: null }],

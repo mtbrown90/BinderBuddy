@@ -16,6 +16,8 @@ export default function AddCardModal({
   card: {
     id: string;
     name: string;
+    number?: string;
+    printedTotal?: number;
     setName: string;
     imageUrl: string;
     variations: Variation[];
@@ -34,6 +36,10 @@ export default function AddCardModal({
 
   const nearMintPrice = variation?.marketPrice ?? null;
   const estimatedPrice = nearMintPrice != null ? conditionAdjustedPrice(nearMintPrice, condition) : null;
+  const numberLine = card.number
+    ? `#${card.number}${card.printedTotal ? `/${card.printedTotal}` : ""}`
+    : null;
+  const subtitle = [card.setName, numberLine].filter(Boolean).join(" · ");
 
   function handleSubmit(formData: FormData) {
     formData.set("cardId", card.id);
@@ -55,12 +61,26 @@ export default function AddCardModal({
         className="bg-panel border border-border rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border font-semibold">
-          <span>{card.name}</span>
-          <button onClick={onClose} className="text-muted">
+        <div className="flex items-start justify-between px-5 py-4 border-b border-border">
+          <div>
+            <div className="font-semibold">{card.name}</div>
+            {subtitle && <div className="text-xs text-muted mt-0.5">{subtitle}</div>}
+          </div>
+          <button onClick={onClose} className="text-muted shrink-0">
             <X size={18} />
           </button>
         </div>
+
+        {card.imageUrl && (
+          <div className="flex justify-center px-5 pt-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={card.imageUrl}
+              alt={card.name}
+              className="h-48 rounded-lg object-contain"
+            />
+          </div>
+        )}
 
         <form action={handleSubmit} className="flex flex-col gap-3.5 px-5 py-4">
           <label className="flex flex-col gap-1.5 text-xs text-muted">

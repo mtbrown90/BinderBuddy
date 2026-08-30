@@ -9,6 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ car
       id: card.id,
       name: card.name,
       number: card.number,
+      printedTotal: card.set.printedTotal,
       setName: card.set.name,
       imageUrl: card.images.small,
       variations: cardVariations(card),
