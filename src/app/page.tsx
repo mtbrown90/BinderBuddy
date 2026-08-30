@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { CollectionEntry } from "@/types";
 import StatCard from "@/components/StatCard";
-import CardTile from "@/components/CardTile";
+import RecentlyAdded from "./RecentlyAdded";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -61,26 +60,7 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-lg">Recently added</h2>
-        <Link href="/sets" className="text-teal text-sm font-medium">
-          Browse sets →
-        </Link>
-      </div>
-
-      {owned.length === 0 ? (
-        <div className="text-muted text-sm text-center py-12 bg-panel border border-border rounded-2xl">
-          Your binder&apos;s empty. Browse a set and add your first card.
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {owned.slice(0, 12).map((e) => (
-            <Link key={e.id} href="/collection">
-              <CardTile name={e.card_name} imageUrl={e.image_url} variationLabel={e.variation_type} />
-            </Link>
-          ))}
-        </div>
-      )}
+      <RecentlyAdded owned={owned} />
     </div>
   );
 }

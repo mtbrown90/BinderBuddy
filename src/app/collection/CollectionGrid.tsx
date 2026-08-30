@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { CollectionEntry } from "@/types";
+import { groupCollectionEntries, groupSubtitle, type EntryGroup } from "@/lib/collectionGroups";
 import CardTile from "@/components/CardTile";
+import CopyPickerModal from "@/components/CopyPickerModal";
 import EntryDetailModal from "./EntryDetailModal";
 
 function historySubtitle(e: CollectionEntry): string {
@@ -15,16 +17,21 @@ function historySubtitle(e: CollectionEntry): string {
 export default function CollectionGrid({ entries }: { entries: CollectionEntry[] }) {
   const [tab, setTab] = useState<"owned" | "history">("owned");
   const [open, setOpen] = useState<CollectionEntry | null>(null);
+  const [picking, setPicking] = useState<EntryGroup | null>(null);
 
   const owned = useMemo(() => entries.filter((e) => e.status === "owned"), [entries]);
   const history = useMemo(() => entries.filter((e) => e.status !== "owned"), [entries]);
-  const visible = tab === "owned" ? owned : history;
+  const ownedGroups = useMemo(() => groupCollectionEntries(owned), [owned]);
 
-  const groups = new Map<string, CollectionEntry[]>();
-  for (const e of visible) {
-    const key = e.set_name ?? "Unsorted";
-    groups.set(key, [...(groups.get(key) ?? []), e]);
+  function openGroup(g: EntryGroup) {
+    if (g.entries.length === 1) setOpen(g.entries[0]);
+    else setPicking(g);
   }
+
+  const bySet =
+    tab === "owned"
+      ? groupBy(ownedGroups, (g) => g.set_name ?? "Unsorted")
+      : groupBy(history, (e) => e.set_name ?? "Unsorted");
 
   return (
     <div className="flex flex-col gap-4">
@@ -47,35 +54,65 @@ export default function CollectionGrid({ entries }: { entries: CollectionEntry[]
         </button>
       </div>
 
-      {visible.length === 0 ? (
+      {(tab === "owned" ? owned.length : history.length) === 0 ? (
         <div className="text-muted text-sm text-center py-10 bg-panel border border-border rounded-2xl">
           {tab === "owned" ? "No cards owned right now." : "Nothing sold or traded yet."}
         </div>
       ) : (
         <div className="flex flex-col gap-6">
-          {[...groups.entries()].map(([setName, group]) => (
+          {[...bySet.entries()].map(([setName, group]) => (
             <div key={setName} className="bg-panel border border-border rounded-2xl p-4">
               <div className="flex items-center gap-1.5 text-sm text-muted mb-3">
                 <Sparkles size={13} className="text-amber" /> {setName}
               </div>
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {group.map((e) => (
-                  <CardTile
-                    key={e.id}
-                    name={e.card_name}
-                    imageUrl={e.image_url}
-                    subtitle={tab === "history" ? historySubtitle(e) : undefined}
-                    variationLabel={e.variation_type}
-                    onClick={() => setOpen(e)}
-                  />
-                ))}
+                {tab === "owned"
+                  ? (group as EntryGroup[]).map((g) => (
+                      <CardTile
+                        key={g.key}
+                        name={g.card_name}
+                        imageUrl={g.image_url}
+                        subtitle={groupSubtitle(g)}
+                        variationLabel={g.variation_type}
+                        onClick={() => openGroup(g)}
+                      />
+                    ))
+                  : (group as CollectionEntry[]).map((e) => (
+                      <CardTile
+                        key={e.id}
+                        name={e.card_name}
+                        imageUrl={e.image_url}
+                        subtitle={historySubtitle(e)}
+                        variationLabel={e.variation_type}
+                        onClick={() => setOpen(e)}
+                      />
+                    ))}
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {picking && (
+        <CopyPickerModal
+          group={picking}
+          onPick={(entry) => {
+            setPicking(null);
+            setOpen(entry);
+          }}
+          onClose={() => setPicking(null)}
+        />
+      )}
       {open && <EntryDetailModal entry={open} onClose={() => setOpen(null)} />}
     </div>
   );
+}
+
+function groupBy<T>(list: T[], key: (item: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of list) {
+    const k = key(item);
+    map.set(k, [...(map.get(k) ?? []), item]);
+  }
+  return map;
 }
