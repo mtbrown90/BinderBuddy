@@ -31,8 +31,26 @@ export default function AddCardModal({
 }) {
   const [variationKey, setVariationKey] = useState(initialVariationKey ?? card.variations[0]?.key ?? "normal");
   const [condition, setCondition] = useState<string>("Near Mint");
+  const [quantity, setQuantity] = useState(1);
+  // One price-paid slot per copy — buying several copies of the same card
+  // over time (or in one trip) rarely means paying the same price for each.
+  const [prices, setPrices] = useState<string[]>([""]);
   const [pending, startTransition] = useTransition();
   const variation = card.variations.find((v) => v.key === variationKey) ?? card.variations[0];
+
+  function handleQuantityChange(raw: string) {
+    const n = Math.max(1, Number(raw) || 1);
+    setQuantity(n);
+    setPrices((prev) => {
+      const next = prev.slice(0, n);
+      while (next.length < n) next.push("");
+      return next;
+    });
+  }
+
+  function setPriceAt(i: number, value: string) {
+    setPrices((prev) => prev.map((p, idx) => (idx === i ? value : p)));
+  }
 
   const nearMintPrice = variation?.marketPrice ?? null;
   const estimatedPrice = nearMintPrice != null ? conditionAdjustedPrice(nearMintPrice, condition) : null;
@@ -48,6 +66,10 @@ export default function AddCardModal({
     formData.set("imageUrl", card.imageUrl);
     formData.set("variationType", variation?.label ?? "Normal");
     formData.set("marketPrice", estimatedPrice != null ? String(estimatedPrice) : "");
+    formData.set(
+      "pricesPaid",
+      JSON.stringify(prices.map((p) => (p.trim() ? Number(p) : null)))
+    );
     startTransition(async () => {
       await addOfficialCardToCollection(formData);
       onAdded?.();
@@ -102,10 +124,10 @@ export default function AddCardModal({
             <label className="flex flex-col gap-1.5 text-xs text-muted">
               Quantity
               <input
-                name="quantity"
                 type="number"
                 min={1}
-                defaultValue={1}
+                value={quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
                 className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
               />
             </label>
@@ -139,27 +161,56 @@ export default function AddCardModal({
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5 text-xs text-muted">
-              Price paid ($)
-              <input
-                name="pricePaid"
-                type="number"
-                step="0.01"
-                min={0}
-                placeholder="0.00"
-                className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-xs text-muted">
-              Date acquired
-              <input
-                name="dateAcquired"
-                type="date"
-                className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
-              />
-            </label>
-          </div>
+          {quantity === 1 ? (
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Price paid ($)
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  placeholder="0.00"
+                  value={prices[0] ?? ""}
+                  onChange={(e) => setPriceAt(0, e.target.value)}
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Date acquired
+                <input
+                  name="dateAcquired"
+                  type="date"
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs text-muted">Price paid per copy ($)</span>
+              <div className="grid grid-cols-2 gap-2">
+                {prices.map((p, i) => (
+                  <input
+                    key={i}
+                    type="number"
+                    step="0.01"
+                    min={0}
+                    placeholder={`Copy ${i + 1}`}
+                    value={p}
+                    onChange={(e) => setPriceAt(i, e.target.value)}
+                    className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                ))}
+              </div>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Date acquired
+                <input
+                  name="dateAcquired"
+                  type="date"
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+            </div>
+          )}
 
           <button
             type="submit"
