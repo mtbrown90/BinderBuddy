@@ -24,12 +24,29 @@ function tilePrice(c: GridTile) {
   return c.variations.find((v) => v.key === c.variationKey)?.marketPrice ?? null;
 }
 
-export default function CardGrid({ cards, ownedKeys }: { cards: GridTile[]; ownedKeys: Set<string> }) {
+export default function CardGrid({
+  cards,
+  ownedKeys,
+  ownedValues,
+}: {
+  cards: GridTile[];
+  ownedKeys: Set<string>;
+  ownedValues: Record<string, number>;
+}) {
   const [open, setOpen] = useState<GridTile | null>(null);
   const [sort, setSort] = useState<SortOption>("number-asc");
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
 
-  const isOwned = (c: GridTile) => ownedKeys.has(`${c.id}::${c.variationLabel.toLowerCase()}`);
+  const tileKey = (c: GridTile) => `${c.id}::${c.variationLabel.toLowerCase()}`;
+  const isOwned = (c: GridTile) => ownedKeys.has(tileKey(c));
+
+  // Fixed facts about the whole set, independent of whichever
+  // filter/sort the grid below is currently showing.
+  const ownedCount = cards.filter(isOwned).length;
+  const ownedValue = cards.filter(isOwned).reduce((s, c) => s + (ownedValues[tileKey(c)] ?? 0), 0);
+  const costToComplete = cards
+    .filter((c) => !isOwned(c))
+    .reduce((s, c) => s + (tilePrice(c) ?? 0), 0);
 
   const sorted = useMemo(() => {
     const filtered = cards.filter((c) => {
@@ -65,6 +82,10 @@ export default function CardGrid({ cards, ownedKeys }: { cards: GridTile[]; owne
 
   return (
     <>
+      <p className="text-xs text-muted mb-3">
+        Owned: {ownedCount}/{cards.length} · Owned value: ${ownedValue.toFixed(2)} · Cost to complete: $
+        {costToComplete.toFixed(2)}
+      </p>
       <div className="flex flex-wrap gap-2 mb-3">
         <select
           value={ownedFilter}

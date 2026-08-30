@@ -66,10 +66,12 @@ export default function MasterSetGrid({
   masterSetId,
   cards,
   ownedKeys,
+  ownedValues,
 }: {
   masterSetId: string;
   cards: MasterSetCard[];
   ownedKeys: Set<string>;
+  ownedValues: Record<string, number>;
 }) {
   const [open, setOpen] = useState<FullCard | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
@@ -101,6 +103,12 @@ export default function MasterSetGrid({
 
   const isOwned = (c: MasterSetCard) => ownedKeys.has(ownedKey(c.external_card_id, c.variation_type));
   const totalOwned = cards.filter(isOwned).length;
+  const ownedValue = cards
+    .filter(isOwned)
+    .reduce((s, c) => s + (ownedValues[ownedKey(c.external_card_id, c.variation_type)] ?? 0), 0);
+  const costToComplete = cards
+    .filter((c) => !isOwned(c))
+    .reduce((s, c) => s + (Number(c.market_price) || 0), 0);
   const visible =
     ownedFilter === "owned"
       ? cards.filter(isOwned)
@@ -159,10 +167,11 @@ export default function MasterSetGrid({
 
   return (
     <>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs text-muted">
-          {totalOwned} / {cards.length} owned
-        </span>
+      <p className="text-xs text-muted mb-2">
+        Owned: {totalOwned}/{cards.length} · Owned value: ${ownedValue.toFixed(2)} · Cost to complete: $
+        {costToComplete.toFixed(2)}
+      </p>
+      <div className="flex items-center justify-end mb-2">
         <div className="flex flex-wrap gap-2">
           <select
             value={ownedFilter}

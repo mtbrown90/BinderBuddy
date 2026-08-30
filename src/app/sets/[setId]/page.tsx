@@ -31,10 +31,19 @@ export default async function SetDetailPage({
 
   const { data: entries } = await supabase
     .from("collection_entries")
-    .select("external_card_id, variation_type");
+    .select("external_card_id, variation_type, market_price, quantity");
   const ownedKeys = new Set(
     (entries ?? []).map((e) => `${e.external_card_id}::${e.variation_type.toLowerCase()}`)
   );
+  // Sums to the same "value of what you own" figure the Dashboard shows,
+  // just scoped to this set — same source (each entry's own stored
+  // market_price, snapshotted at add time) and the same market_price *
+  // quantity math, so a card counts its full value once per copy owned.
+  const ownedValues: Record<string, number> = {};
+  for (const e of entries ?? []) {
+    const key = `${e.external_card_id}::${e.variation_type.toLowerCase()}`;
+    ownedValues[key] = (ownedValues[key] ?? 0) + (Number(e.market_price) || 0) * e.quantity;
+  }
 
   // One tile per printing, not per card number — a card with both a Normal
   // and a Reverse Holo run shows as two adjacent tiles (same number,
@@ -69,7 +78,7 @@ export default async function SetDetailPage({
           </p>
         </div>
       </div>
-      <CardGrid cards={gridCards} ownedKeys={ownedKeys} />
+      <CardGrid cards={gridCards} ownedKeys={ownedKeys} ownedValues={ownedValues} />
     </div>
   );
 }

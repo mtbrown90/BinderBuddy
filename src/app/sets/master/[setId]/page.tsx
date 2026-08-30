@@ -27,7 +27,7 @@ export default async function MasterSetDetailPage({
       .eq("master_set_id", setId)
       .order("card_name", { ascending: true })
       .returns<MasterSetCard[]>(),
-    supabase.from("collection_entries").select("external_card_id, variation_type"),
+    supabase.from("collection_entries").select("external_card_id, variation_type, market_price, quantity"),
     supabase
       .from("masterset_pdf_purchases")
       .select("*")
@@ -46,6 +46,13 @@ export default async function MasterSetDetailPage({
   const ownedKeys = new Set(
     (entries ?? []).map((e) => `${e.external_card_id}::${e.variation_type.toLowerCase()}`)
   );
+  // Same "value of what you own" math as the Dashboard — each entry's own
+  // stored market_price (snapshotted at add time) times quantity.
+  const ownedValues: Record<string, number> = {};
+  for (const e of entries ?? []) {
+    const key = `${e.external_card_id}::${e.variation_type.toLowerCase()}`;
+    ownedValues[key] = (ownedValues[key] ?? 0) + (Number(e.market_price) || 0) * e.quantity;
+  }
   const existingCardIds = (cards ?? []).map((c) => c.external_card_id);
 
   return (
@@ -112,7 +119,12 @@ export default async function MasterSetDetailPage({
       </div>
 
       <h2 className="font-semibold text-lg mb-3">Checklist</h2>
-      <MasterSetGrid masterSetId={setId} cards={cards ?? []} ownedKeys={ownedKeys} />
+      <MasterSetGrid
+        masterSetId={setId}
+        cards={cards ?? []}
+        ownedKeys={ownedKeys}
+        ownedValues={ownedValues}
+      />
     </div>
   );
 }
