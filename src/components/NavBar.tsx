@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Wallet, FolderPlus, Store, LogOut } from "lucide-react";
+import { LayoutGrid, Wallet, FolderPlus, Store, MessagesSquare, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 
@@ -11,6 +11,7 @@ const TABS = [
   { href: "/sets", label: "Sets", icon: LayoutGrid },
   { href: "/collection", label: "Collection", icon: FolderPlus },
   { href: "/store", label: "Store", icon: Store },
+  { href: "/community", label: "Community", icon: MessagesSquare },
 ];
 
 export default function NavBar() {

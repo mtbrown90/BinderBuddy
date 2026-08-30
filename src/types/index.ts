@@ -131,3 +131,36 @@ export type MastersetPdfPurchase = {
   created_at: string;
   completed_at: string | null;
 };
+
+export type DiscussionCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  sort_order: number;
+};
+
+export type DiscussionThread = {
+  id: string;
+  category_id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  is_pinned: boolean;
+  is_locked: boolean;
+  reply_count: number;
+  last_activity_at: string;
+  created_at: string;
+  updated_at: string;
+  author_username: string | null;
+};
+
+export type DiscussionReply = {
+  id: string;
+  thread_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+  author_username: string | null;
+};
