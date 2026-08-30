@@ -86,6 +86,24 @@ function escapeQueryValue(value: string) {
   return value.replace(/"/g, '\\"');
 }
 
+// Batch-fetches specific cards by id — used to refresh stored prices for
+// existing checklist rows (added before a price snapshot existed, or since
+// gone stale) without requiring each one to be removed and re-added.
+export async function getCardsByIds(ids: string[]): Promise<PokemonCard[]> {
+  const unique = Array.from(new Set(ids));
+  const chunkSize = 50;
+  const all: PokemonCard[] = [];
+
+  for (let i = 0; i < unique.length; i += chunkSize) {
+    const chunk = unique.slice(i, i + chunkSize);
+    const q = chunk.map((id) => `id:"${escapeQueryValue(id)}"`).join(" OR ");
+    const json = await getRaw(`/cards?q=${encodeURIComponent(q)}&pageSize=${chunkSize}`);
+    all.push(...(json.data as PokemonCard[]));
+  }
+
+  return all;
+}
+
 // Every official printing whose name exactly matches (used by the paid
 // auto-populate feature — deliberately exact, not the wildcard substring
 // match searchCards() uses for interactive search, so "Piplup" doesn't

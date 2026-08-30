@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
-import { getCard, cardVariations } from "@/lib/pokemontcg";
+import { getCard, getCardsByIds, cardVariations } from "@/lib/pokemontcg";
+import type { MasterSetCard } from "@/types";
 
 // Adds every known printing (variation) of the given card to the master
 // set's checklist in one go — a masterset tracks each printing separately,
@@ -78,6 +79,73 @@ export async function addManualCardToMasterSet(formData: FormData) {
   if (error) throw new Error(error.message);
 
   revalidatePath(`/sets/master/${masterSetId}`);
+}
+
+const REFRESH_CHUNK_SIZE = 500;
+
+// Re-fetches live prices for every API-sourced card in this checklist and
+// snapshots the result onto each row. Needed because market_price is only
+// ever captured at add time — a checklist built via search-add or a Store
+// auto-populate purchase before this snapshotting existed (or since gone
+// stale) would otherwise carry null/outdated prices forever, since nothing
+// else ever revisits an already-added row.
+export async function refreshMasterSetPrices(
+  masterSetId: string
+): Promise<{ updated: number } | { error: string }> {
+  const supabase = await createClient();
+
+  const { data: rows, error: fetchError } = await supabase
+    .from("master_set_cards")
+    .select("*")
+    .eq("master_set_id", masterSetId)
+    .eq("external_source", "pokemontcg.io")
+    .returns<MasterSetCard[]>();
+
+  if (fetchError) return { error: fetchError.message };
+  if (!rows || rows.length === 0) return { updated: 0 };
+
+  let cards;
+  try {
+    cards = await getCardsByIds(rows.map((r) => r.external_card_id));
+  } catch {
+    return { error: "Couldn't reach the Pokémon TCG API right now — try again in a moment." };
+  }
+  const cardById = new Map(cards.map((c) => [c.id, c]));
+
+  const updates = rows.flatMap((row) => {
+    const card = cardById.get(row.external_card_id);
+    if (!card) return [];
+    const variation = cardVariations(card).find(
+      (v) => v.label.toLowerCase() === row.variation_type.toLowerCase()
+    );
+    if (!variation) return [];
+    return [
+      {
+        master_set_id: row.master_set_id,
+        external_card_id: row.external_card_id,
+        external_source: row.external_source,
+        variation_type: row.variation_type,
+        card_name: row.card_name,
+        set_name: row.set_name,
+        card_number: row.card_number,
+        set_printed_total: row.set_printed_total,
+        image_url: row.image_url,
+        market_price: variation.marketPrice,
+        added_via: row.added_via,
+      },
+    ];
+  });
+
+  for (let i = 0; i < updates.length; i += REFRESH_CHUNK_SIZE) {
+    const chunk = updates.slice(i, i + REFRESH_CHUNK_SIZE);
+    const { error } = await supabase
+      .from("master_set_cards")
+      .upsert(chunk, { onConflict: "master_set_id,external_card_id,variation_type" });
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath(`/sets/master/${masterSetId}`);
+  return { updated: updates.length };
 }
 
 export async function removeCardFromMasterSet(masterSetCardId: string, masterSetId: string) {

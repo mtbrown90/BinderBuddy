@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { RefreshCw, X } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSetCard } from "@/types";
-import { removeCardFromMasterSet } from "./actions";
+import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type FullCard = { id: string; name: string; setName: string; imageUrl: string; variations: Variation[] };
@@ -68,6 +68,20 @@ export default function MasterSetGrid({
   const [pending, startTransition] = useTransition();
   const [sort, setSort] = useState<SortOption>("name-asc");
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
+  const [refreshPending, startRefresh] = useTransition();
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+
+  function handleRefreshPrices() {
+    setRefreshMessage(null);
+    startRefresh(async () => {
+      const result = await refreshMasterSetPrices(masterSetId);
+      setRefreshMessage(
+        "error" in result
+          ? `Couldn't refresh prices: ${result.error}`
+          : `Refreshed ${result.updated} price${result.updated === 1 ? "" : "s"}.`
+      );
+    });
+  }
 
   if (cards.length === 0) {
     return (
@@ -159,8 +173,19 @@ export default function MasterSetGrid({
             <option value="price-desc">Sort: Price (high–low)</option>
             <option value="price-asc">Sort: Price (low–high)</option>
           </select>
+          <button
+            type="button"
+            onClick={handleRefreshPrices}
+            disabled={refreshPending}
+            title="Re-fetch live prices for every card in this checklist — useful if prices look missing or out of date"
+            className="flex items-center gap-1.5 bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink disabled:opacity-60"
+          >
+            <RefreshCw size={12} className={refreshPending ? "animate-spin" : ""} />
+            {refreshPending ? "Refreshing…" : "Refresh prices"}
+          </button>
         </div>
       </div>
+      {refreshMessage && <p className="text-xs text-muted mb-2 text-right">{refreshMessage}</p>}
       {owned.length + missing.length === 0 ? (
         <div className="text-muted text-sm text-center py-10 bg-panel border border-border rounded-2xl">
           {ownedFilter === "owned" ? "You don't own any cards from this checklist yet." : "No cards match."}
