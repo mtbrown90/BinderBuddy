@@ -70,6 +70,8 @@ export type CollectionEntry = {
   traded_for_card_name: string | null;
   traded_for_card_value: number | null;
   traded_cash_received: number | null;
+  is_for_trade: boolean;
+  trade_note: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -162,6 +164,37 @@ export type DiscussionReply = {
   body: string;
   created_at: string;
   updated_at: string;
+  author_username: string | null;
+};
+
+// A collection entry marked is_for_trade, as seen by other users on the
+// Trading board — always carries the owner's public username.
+export type TradeListing = CollectionEntry & { author_username: string | null };
+
+export type TradeWant = {
+  id: string;
+  user_id: string;
+  card_name: string;
+  note: string | null;
+  created_at: string;
+  author_username: string | null;
+};
+
+export type Conversation = {
+  id: string;
+  last_message_at: string;
+  created_at: string;
+  other_username: string | null;
+  last_message_preview: string | null;
+  unread: boolean;
+};
+
+export type Message = {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  body: string;
+  created_at: string;
   author_username: string | null;
 };
 

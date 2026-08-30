@@ -76,6 +76,28 @@ export async function markEntryTraded(entryId: string, formData: FormData) {
   revalidatePath("/");
 }
 
+// Toggles whether this card appears on the public Community Trading board.
+// Only is_for_trade rows are ever visible to other users (see
+// collection_entries RLS) — everything else about a user's collection
+// stays private.
+export async function setTradeAvailability(entryId: string, formData: FormData) {
+  const supabase = await createClient();
+
+  const isForTrade = formData.get("isForTrade") === "true";
+  const note = String(formData.get("tradeNote") || "").trim();
+
+  const { error } = await supabase
+    .from("collection_entries")
+    .update({ is_for_trade: isForTrade, trade_note: isForTrade ? note || null : null })
+    .eq("id", entryId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/collection");
+  revalidatePath("/");
+  revalidatePath("/community/trading");
+}
+
 // Reverts a sold/traded entry back to owned, clearing disposal fields —
 // for undoing a mistaken sale/trade record.
 export async function markEntryOwned(entryId: string) {

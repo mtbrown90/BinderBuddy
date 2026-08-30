@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { X, Trash2, DollarSign, Repeat, Undo2, Search, Plus, Check } from "lucide-react";
+import { X, Trash2, DollarSign, Repeat, Undo2, Search, Plus, Check, Repeat2 } from "lucide-react";
 import type { CollectionEntry } from "@/types";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
-import { removeCollectionEntry, markEntrySold, markEntryTraded, markEntryOwned } from "./actions";
+import {
+  removeCollectionEntry,
+  markEntrySold,
+  markEntryTraded,
+  markEntryOwned,
+  setTradeAvailability,
+} from "./actions";
 
 type Mode = "view" | "sell" | "trade";
 
@@ -41,6 +47,10 @@ export default function EntryDetailModal({
   const totalCost = paid * entry.quantity;
   const market = Number(entry.market_price) || 0;
   const unrealized = market - paid;
+
+  const [isForTrade, setIsForTrade] = useState(entry.is_for_trade);
+  const [tradeNote, setTradeNote] = useState(entry.trade_note ?? "");
+  const [tradePending, startTradeTransition] = useTransition();
 
   const [tradedForCardName, setTradedForCardName] = useState("");
   const [addReceivedCard, setAddReceivedCard] = useState(false);
@@ -97,6 +107,15 @@ export default function EntryDetailModal({
     startTransition(async () => {
       await markEntryTraded(entry.id, formData);
       setMode("view");
+    });
+  }
+
+  function handleSaveTradeAvailability() {
+    const formData = new FormData();
+    formData.set("isForTrade", String(isForTrade));
+    formData.set("tradeNote", tradeNote);
+    startTradeTransition(async () => {
+      await setTradeAvailability(entry.id, formData);
     });
   }
 
@@ -197,6 +216,52 @@ export default function EntryDetailModal({
               >
                 <Repeat size={14} /> Mark as traded
               </button>
+            </div>
+          )}
+
+          {mode === "view" && entry.status === "owned" && (
+            <div className="flex flex-col gap-2 bg-panel-2 border border-border rounded-xl p-3.5">
+              <div className="flex items-center gap-1.5 text-xs text-muted">
+                <Repeat2 size={13} /> Available to trade on the Community board?
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsForTrade(false)}
+                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border ${
+                    !isForTrade ? "bg-panel border-teal text-ink" : "border-border text-muted"
+                  }`}
+                >
+                  No
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsForTrade(true)}
+                  className={`flex-1 rounded-lg py-1.5 text-xs font-semibold border ${
+                    isForTrade ? "bg-panel border-teal text-ink" : "border-border text-muted"
+                  }`}
+                >
+                  Yes
+                </button>
+              </div>
+              {isForTrade && (
+                <input
+                  value={tradeNote}
+                  onChange={(e) => setTradeNote(e.target.value)}
+                  placeholder="Optional note, e.g. looking for X in return"
+                  className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-xs"
+                />
+              )}
+              {(isForTrade !== entry.is_for_trade || tradeNote !== (entry.trade_note ?? "")) && (
+                <button
+                  type="button"
+                  onClick={handleSaveTradeAvailability}
+                  disabled={tradePending}
+                  className="brand-gradient text-[#0b0c14] font-bold rounded-lg py-2 text-xs disabled:opacity-60"
+                >
+                  {tradePending ? "Saving…" : "Save"}
+                </button>
+              )}
             </div>
           )}
 

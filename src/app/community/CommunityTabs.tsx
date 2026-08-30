@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/community", label: "Boards" },
   { href: "/community/calendar", label: "Calendar" },
+  { href: "/community/trading", label: "Trading" },
+  { href: "/community/messages", label: "Messages" },
 ];
 
 export default function CommunityTabs() {
