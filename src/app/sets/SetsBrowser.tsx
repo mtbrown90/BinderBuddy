@@ -56,7 +56,7 @@ export default function SetsBrowser({
   const [seriesFilter, setSeriesFilter] = useState(ALL);
   const [yearFilter, setYearFilter] = useState(ALL);
   const [officialSort, setOfficialSort] = useState<"newest" | "oldest">("newest");
-  const [masterSort, setMasterSort] = useState<"recent" | "name">("recent");
+  const [masterSort, setMasterSort] = useState<"recent" | "name-asc" | "name-desc">("recent");
 
   // officialSets already arrives newest-first from the API, so taking series
   // and years in the order they first appear keeps both dropdowns roughly
@@ -115,11 +115,11 @@ export default function SetsBrowser({
   const filteredMasterSets = useMemo(() => {
     const q = query.trim().toLowerCase();
     const filtered = q ? masterSets.filter((s) => s.name.toLowerCase().includes(q)) : [...masterSets];
-    filtered.sort((a, b) =>
-      masterSort === "name"
-        ? a.name.localeCompare(b.name)
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
+    filtered.sort((a, b) => {
+      if (masterSort === "name-asc") return a.name.localeCompare(b.name);
+      if (masterSort === "name-desc") return b.name.localeCompare(a.name);
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
     return filtered;
   }, [masterSets, query, masterSort]);
 
@@ -195,7 +195,8 @@ export default function SetsBrowser({
             className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink mb-3"
           >
             <option value="recent">Sort: Recently created</option>
-            <option value="name">Sort: Name (A–Z)</option>
+            <option value="name-asc">Sort: Name (A–Z)</option>
+            <option value="name-desc">Sort: Name (Z–A)</option>
           </select>
         )}
         {filteredMasterSets.length === 0 ? (

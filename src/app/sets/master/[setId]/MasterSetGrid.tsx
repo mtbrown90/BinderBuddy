@@ -19,26 +19,37 @@ function cardSubtitle(c: MasterSetCard) {
   return [c.set_name, number].filter(Boolean).join(" · ") || undefined;
 }
 
-type SortOption = "name" | "number" | "price";
+type SortOption = "name-asc" | "name-desc" | "number-asc" | "number-desc" | "price-desc" | "price-asc";
+type OwnedFilter = "all" | "owned" | "unowned";
 
 function sortCards(list: MasterSetCard[], sort: SortOption) {
   const withIndex = list.map((c, i) => ({ c, i }));
   withIndex.sort((a, b) => {
-    if (sort === "number") {
-      const na = Number(a.c.card_number);
-      const nb = Number(b.c.card_number);
-      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb || a.i - b.i;
-      return (a.c.card_number ?? "").localeCompare(b.c.card_number ?? "") || a.i - b.i;
+    switch (sort) {
+      case "number-asc":
+      case "number-desc": {
+        const na = Number(a.c.card_number);
+        const nb = Number(b.c.card_number);
+        const cmp =
+          !Number.isNaN(na) && !Number.isNaN(nb)
+            ? na - nb
+            : (a.c.card_number ?? "").localeCompare(b.c.card_number ?? "");
+        return (sort === "number-desc" ? -cmp : cmp) || a.i - b.i;
+      }
+      case "price-desc":
+      case "price-asc": {
+        const pa = a.c.market_price;
+        const pb = b.c.market_price;
+        if (pa == null && pb == null) return a.i - b.i;
+        if (pa == null) return 1;
+        if (pb == null) return -1;
+        return (sort === "price-desc" ? pb - pa : pa - pb) || a.i - b.i;
+      }
+      case "name-desc":
+        return b.c.card_name.localeCompare(a.c.card_name) || a.i - b.i;
+      default: // "name-asc"
+        return a.c.card_name.localeCompare(b.c.card_name) || a.i - b.i;
     }
-    if (sort === "price") {
-      const pa = a.c.market_price;
-      const pb = b.c.market_price;
-      if (pa == null && pb == null) return a.i - b.i;
-      if (pa == null) return 1;
-      if (pb == null) return -1;
-      return pb - pa || a.i - b.i;
-    }
-    return a.c.card_name.localeCompare(b.c.card_name) || a.i - b.i;
   });
   return withIndex.map(({ c }) => c);
 }
@@ -55,7 +66,8 @@ export default function MasterSetGrid({
   const [open, setOpen] = useState<FullCard | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [sort, setSort] = useState<SortOption>("name");
+  const [sort, setSort] = useState<SortOption>("name-asc");
+  const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
 
   if (cards.length === 0) {
     return (
@@ -66,8 +78,15 @@ export default function MasterSetGrid({
   }
 
   const isOwned = (c: MasterSetCard) => ownedKeys.has(ownedKey(c.external_card_id, c.variation_type));
-  const owned = sortCards(cards.filter(isOwned), sort);
-  const missing = sortCards(cards.filter((c) => !isOwned(c)), sort);
+  const totalOwned = cards.filter(isOwned).length;
+  const visible =
+    ownedFilter === "owned"
+      ? cards.filter(isOwned)
+      : ownedFilter === "unowned"
+        ? cards.filter((c) => !isOwned(c))
+        : cards;
+  const owned = sortCards(visible.filter(isOwned), sort);
+  const missing = sortCards(visible.filter((c) => !isOwned(c)), sort);
 
   function remove(id: string) {
     startTransition(() => removeCardFromMasterSet(id, masterSetId));
@@ -116,18 +135,37 @@ export default function MasterSetGrid({
     <>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs text-muted">
-          {owned.length} / {cards.length} owned
+          {totalOwned} / {cards.length} owned
         </span>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value as SortOption)}
-          className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
-        >
-          <option value="name">Sort: Name (A–Z)</option>
-          <option value="number">Sort: Card number</option>
-          <option value="price">Sort: Price (high–low)</option>
-        </select>
+        <div className="flex flex-wrap gap-2">
+          <select
+            value={ownedFilter}
+            onChange={(e) => setOwnedFilter(e.target.value as OwnedFilter)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+          >
+            <option value="all">All cards</option>
+            <option value="owned">Owned only</option>
+            <option value="unowned">Unowned only</option>
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortOption)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+          >
+            <option value="name-asc">Sort: Name (A–Z)</option>
+            <option value="name-desc">Sort: Name (Z–A)</option>
+            <option value="number-asc">Sort: Card number (low–high)</option>
+            <option value="number-desc">Sort: Card number (high–low)</option>
+            <option value="price-desc">Sort: Price (high–low)</option>
+            <option value="price-asc">Sort: Price (low–high)</option>
+          </select>
+        </div>
       </div>
+      {owned.length + missing.length === 0 ? (
+        <div className="text-muted text-sm text-center py-10 bg-panel border border-border rounded-2xl">
+          {ownedFilter === "owned" ? "You don't own any cards from this checklist yet." : "No cards match."}
+        </div>
+      ) : (
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
         {[...missing, ...owned].map((c) => (
           <div key={c.id} className="relative group">
@@ -153,6 +191,7 @@ export default function MasterSetGrid({
           </div>
         ))}
       </div>
+      )}
       {open && <AddCardModal card={open} onClose={() => setOpen(null)} />}
     </>
   );

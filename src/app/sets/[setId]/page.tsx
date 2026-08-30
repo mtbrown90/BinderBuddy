@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getSet, listCardsInSet, cardVariations } from "@/lib/pokemontcg";
+import { createClient } from "@/lib/supabase/server";
 import CardGrid from "./CardGrid";
 
 export default async function SetDetailPage({
@@ -9,6 +10,7 @@ export default async function SetDetailPage({
   params: Promise<{ setId: string }>;
 }) {
   const { setId } = await params;
+  const supabase = await createClient();
 
   let set, cards;
   try {
@@ -26,6 +28,13 @@ export default async function SetDetailPage({
       </div>
     );
   }
+
+  const { data: entries } = await supabase
+    .from("collection_entries")
+    .select("external_card_id, variation_type");
+  const ownedKeys = new Set(
+    (entries ?? []).map((e) => `${e.external_card_id}::${e.variation_type.toLowerCase()}`)
+  );
 
   // One tile per printing, not per card number — a card with both a Normal
   // and a Reverse Holo run shows as two adjacent tiles (same number,
@@ -60,7 +69,7 @@ export default async function SetDetailPage({
           </p>
         </div>
       </div>
-      <CardGrid cards={gridCards} />
+      <CardGrid cards={gridCards} ownedKeys={ownedKeys} />
     </div>
   );
 }
