@@ -5,14 +5,16 @@ import { Zap } from "lucide-react";
 import { POKEMON_TYPES, TYPE_COLORS, type PokemonType } from "@/lib/pokemontcg";
 import { BULK_AUTOPOPULATE_PRICE_CENTS } from "@/lib/pricing";
 import type { MasterSet } from "@/types";
-import MasterSetSelect from "./MasterSetSelect";
+import MasterSetSelect, { NEW_MASTER_SET_VALUE } from "./MasterSetSelect";
+import { resolveMasterSetId } from "./resolveMasterSetId";
 
 // Light backgrounds need dark chip text for contrast; the rest read fine
 // in white.
 const DARK_TEXT_TYPES = new Set<PokemonType>(["Colorless", "Fairy", "Lightning"]);
 
 export default function TypeAutoPopulateForm({ masterSets }: { masterSets: MasterSet[] }) {
-  const [masterSetId, setMasterSetId] = useState(masterSets[0].id);
+  const [masterSetId, setMasterSetId] = useState(masterSets[0]?.id ?? NEW_MASTER_SET_VALUE);
+  const [newMasterSetName, setNewMasterSetName] = useState("");
   const [type, setType] = useState<PokemonType>(POKEMON_TYPES[0]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,11 +25,19 @@ export default function TypeAutoPopulateForm({ masterSets }: { masterSets: Maste
     e.preventDefault();
     setPending(true);
     setError(null);
+
+    const target = await resolveMasterSetId(masterSetId, newMasterSetName);
+    if ("error" in target) {
+      setError(target.error);
+      setPending(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ masterSetId, type }),
+        body: JSON.stringify({ masterSetId: target.id, type }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -44,7 +54,13 @@ export default function TypeAutoPopulateForm({ masterSets }: { masterSets: Maste
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <MasterSetSelect masterSets={masterSets} value={masterSetId} onChange={setMasterSetId} />
+      <MasterSetSelect
+        masterSets={masterSets}
+        value={masterSetId}
+        onChange={setMasterSetId}
+        newName={newMasterSetName}
+        onNewNameChange={setNewMasterSetName}
+      />
       <div className="flex flex-col gap-1.5 text-xs text-muted">
         Energy type
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">

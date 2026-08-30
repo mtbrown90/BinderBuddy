@@ -4,10 +4,12 @@ import { useState } from "react";
 import { Palette } from "lucide-react";
 import { BULK_AUTOPOPULATE_PRICE_CENTS } from "@/lib/pricing";
 import type { MasterSet } from "@/types";
-import MasterSetSelect from "./MasterSetSelect";
+import MasterSetSelect, { NEW_MASTER_SET_VALUE } from "./MasterSetSelect";
+import { resolveMasterSetId } from "./resolveMasterSetId";
 
 export default function ArtistAutoPopulateForm({ masterSets }: { masterSets: MasterSet[] }) {
-  const [masterSetId, setMasterSetId] = useState(masterSets[0].id);
+  const [masterSetId, setMasterSetId] = useState(masterSets[0]?.id ?? NEW_MASTER_SET_VALUE);
+  const [newMasterSetName, setNewMasterSetName] = useState("");
   const [artist, setArtist] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,11 +26,19 @@ export default function ArtistAutoPopulateForm({ masterSets }: { masterSets: Mas
 
     setPending(true);
     setError(null);
+
+    const target = await resolveMasterSetId(masterSetId, newMasterSetName);
+    if ("error" in target) {
+      setError(target.error);
+      setPending(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/stripe/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ masterSetId, artist: trimmed }),
+        body: JSON.stringify({ masterSetId: target.id, artist: trimmed }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) {
@@ -45,7 +55,13 @@ export default function ArtistAutoPopulateForm({ masterSets }: { masterSets: Mas
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <MasterSetSelect masterSets={masterSets} value={masterSetId} onChange={setMasterSetId} />
+      <MasterSetSelect
+        masterSets={masterSets}
+        value={masterSetId}
+        onChange={setMasterSetId}
+        newName={newMasterSetName}
+        onNewNameChange={setNewMasterSetName}
+      />
       <label className="flex flex-col gap-1.5 text-xs text-muted">
         Artist name
         <input
