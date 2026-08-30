@@ -51,7 +51,7 @@ export default function CardTile({
           <img
             src={imageUrl}
             alt={name}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover ${owned === false ? "grayscale opacity-60" : ""}`}
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}
