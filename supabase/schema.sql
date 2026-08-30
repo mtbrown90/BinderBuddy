@@ -288,6 +288,25 @@ create trigger on_reply_insert after insert on discussion_replies
 create trigger on_reply_delete after delete on discussion_replies
   for each row execute procedure bump_thread_activity();
 
+-- ---------- Calendar events ----------
+-- Any signed-in user can post a show/event — a shared community calendar,
+-- not admin-curated. user_id references profiles (not auth.users directly)
+-- so PostgREST can embed the organizer's username in one query, same as
+-- discussion_threads above.
+create table calendar_events (
+    id          uuid primary key default gen_random_uuid(),
+    user_id     uuid not null references profiles(id) on delete cascade,
+    title       text not null,
+    description text,
+    location    text,
+    event_date  date not null,
+    event_url   text,
+    created_at  timestamptz not null default now(),
+    updated_at  timestamptz not null default now()
+);
+
+create index idx_calendar_events_date on calendar_events(event_date);
+
 -- ============================================================
 -- Row Level Security — every table is scoped to its owning user.
 -- ============================================================
@@ -302,6 +321,7 @@ alter table masterset_pdf_purchases enable row level security;
 alter table discussion_categories enable row level security;
 alter table discussion_threads enable row level security;
 alter table discussion_replies enable row level security;
+alter table calendar_events enable row level security;
 
 create policy "read own profile" on profiles
   for select using (auth.uid() = id);
@@ -367,5 +387,17 @@ create policy "update own or admin reply" on discussion_replies
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin))
   with check (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
 create policy "delete own or admin reply" on discussion_replies
+  for delete
+  using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
+
+create policy "read all events" on calendar_events
+  for select using (true);
+create policy "insert own event" on calendar_events
+  for insert with check (auth.uid() = user_id);
+create policy "update own or admin event" on calendar_events
+  for update
+  using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin))
+  with check (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
+create policy "delete own or admin event" on calendar_events
   for delete
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));

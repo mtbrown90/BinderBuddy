@@ -164,3 +164,16 @@ export type DiscussionReply = {
   updated_at: string;
   author_username: string | null;
 };
+
+export type CalendarEvent = {
+  id: string;
+  user_id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  event_date: string;
+  event_url: string | null;
+  created_at: string;
+  updated_at: string;
+  author_username: string | null;
+};

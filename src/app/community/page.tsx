@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import type { DiscussionCategory } from "@/types";
+import CommunityTabs from "./CommunityTabs";
 
 type CategoryRow = DiscussionCategory & { discussion_threads: { count: number }[] };
 
@@ -16,7 +17,8 @@ export default async function CommunityPage() {
   return (
     <div>
       <h1 className="font-semibold text-lg mb-1">Community</h1>
-      <p className="text-sm text-muted mb-5">Discussion boards for Pokémon TCG collectors.</p>
+      <p className="text-sm text-muted mb-3">Discussion boards for Pokémon TCG collectors.</p>
+      <CommunityTabs />
 
       <div className="flex flex-col gap-3">
         {(categories ?? []).map((c) => (
