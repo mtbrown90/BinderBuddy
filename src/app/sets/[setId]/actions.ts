@@ -24,6 +24,10 @@ export async function addOfficialCardToCollection(formData: FormData) {
   }
   if (prices.length === 0) prices = [null];
 
+  const isGraded = formData.get("isGraded") === "true";
+  const gradeRaw = formData.get("grade");
+  const grade = gradeRaw ? Number(gradeRaw) : null;
+
   const base = {
     user_id: user.id,
     external_card_id: cardId,
@@ -32,7 +36,11 @@ export async function addOfficialCardToCollection(formData: FormData) {
     card_name: String(formData.get("cardName")),
     set_name: String(formData.get("setName")),
     image_url: String(formData.get("imageUrl") || "") || null,
-    condition: String(formData.get("condition")),
+    // A graded card's condition is meaningless — grade replaces it.
+    condition: isGraded ? null : String(formData.get("condition")),
+    is_graded: isGraded,
+    grading_company: isGraded ? String(formData.get("gradingCompany") || "") || null : null,
+    grade: isGraded && grade != null && !Number.isNaN(grade) ? grade : null,
     quantity: 1,
     market_price: formData.get("marketPrice") ? Number(formData.get("marketPrice")) : null,
     date_acquired: formData.get("dateAcquired") || null,

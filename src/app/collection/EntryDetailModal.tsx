@@ -127,7 +127,11 @@ export default function EntryDetailModal({
           <div className="flex-1 flex flex-col text-sm">
             <Row label="Set" value={entry.set_name ?? "—"} />
             <Row label="Variation" value={entry.variation_type} />
-            <Row label="Condition" value={entry.condition} />
+            {entry.is_graded ? (
+              <Row label="Grade" value={`${entry.grading_company} ${entry.grade}`} />
+            ) : (
+              <Row label="Condition" value={entry.condition ?? "—"} />
+            )}
             <Row label="Quantity" value={String(entry.quantity)} />
             <Row label="Price paid" value={`$${totalCost.toFixed(2)}`} />
             {entry.status === "owned" && (

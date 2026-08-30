@@ -116,7 +116,13 @@ create table collection_entries (
     set_name       text,
     image_url      text,
 
-    condition      text not null default 'Near Mint',
+    -- null for graded entries — grade replaces condition conceptually
+    condition      text default 'Near Mint',
+    -- graded slabs (PSA/TAG/BGS/CGC/Other) — market_price above still
+    -- holds the value either way (raw estimate vs. graded pull/manual)
+    is_graded      boolean not null default false,
+    grading_company text check (grading_company is null or grading_company in ('PSA', 'TAG', 'BGS', 'CGC', 'Other')),
+    grade          numeric(3,1),
     quantity       integer not null default 1 check (quantity >= 1),
     price_paid     numeric(10,2),
     market_price   numeric(10,2),

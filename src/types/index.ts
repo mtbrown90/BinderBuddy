@@ -42,6 +42,9 @@ export function conditionAdjustedPrice(nearMintPrice: number, condition: string)
 
 export type CollectionStatus = "owned" | "sold" | "traded";
 
+export const GRADING_COMPANIES = ["PSA", "TAG", "BGS", "CGC", "Other"] as const;
+export type GradingCompany = (typeof GRADING_COMPANIES)[number];
+
 export type CollectionEntry = {
   id: string;
   user_id: string;
@@ -51,7 +54,10 @@ export type CollectionEntry = {
   card_name: string;
   set_name: string | null;
   image_url: string | null;
-  condition: string;
+  condition: string | null;
+  is_graded: boolean;
+  grading_company: string | null;
+  grade: number | null;
   quantity: number;
   price_paid: number | null;
   market_price: number | null;

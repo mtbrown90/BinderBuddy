@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { X } from "lucide-react";
-import { CONDITIONS, conditionAdjustedPrice } from "@/types";
+import { CONDITIONS, GRADING_COMPANIES, conditionAdjustedPrice, type GradingCompany } from "@/types";
 import { addOfficialCardToCollection } from "@/app/sets/[setId]/actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
@@ -38,6 +38,48 @@ export default function AddCardModal({
   const [pending, startTransition] = useTransition();
   const variation = card.variations.find((v) => v.key === variationKey) ?? card.variations[0];
 
+  const [isGraded, setIsGraded] = useState(false);
+  const [gradingCompany, setGradingCompany] = useState<GradingCompany>("PSA");
+  const [grade, setGrade] = useState("10");
+  const [gradedPrice, setGradedPrice] = useState("");
+  const [gradedPriceLoading, setGradedPriceLoading] = useState(false);
+  const [gradedPricePulled, setGradedPricePulled] = useState(false);
+
+  // Debounced auto-pull from PokemonPriceTracker whenever graded mode is on
+  // and company/grade are set — the user can still edit the result before
+  // saving, since it's a median eBay-sold estimate, not an appraisal.
+  useEffect(() => {
+    if (!isGraded) return;
+    const gradeNum = Number(grade);
+    if (!Number.isFinite(gradeNum) || gradeNum < 1 || gradeNum > 10) return;
+
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      setGradedPriceLoading(true);
+      const price = await fetch(
+        `/api/graded-price?cardName=${encodeURIComponent(card.name)}&setName=${encodeURIComponent(
+          card.setName
+        )}&company=${encodeURIComponent(gradingCompany)}&grade=${gradeNum}`
+      )
+        .then((r) => r.json())
+        .then((d) => d.price as number | null)
+        .catch(() => null);
+      if (cancelled) return;
+      setGradedPriceLoading(false);
+      if (price != null) {
+        setGradedPrice(String(price));
+        setGradedPricePulled(true);
+      } else {
+        setGradedPricePulled(false);
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+  }, [isGraded, gradingCompany, grade, card.name, card.setName]);
+
   function handleQuantityChange(raw: string) {
     const n = Math.max(1, Number(raw) || 1);
     setQuantity(n);
@@ -65,7 +107,14 @@ export default function AddCardModal({
     formData.set("setName", card.setName);
     formData.set("imageUrl", card.imageUrl);
     formData.set("variationType", variation?.label ?? "Normal");
-    formData.set("marketPrice", estimatedPrice != null ? String(estimatedPrice) : "");
+    formData.set("isGraded", isGraded ? "true" : "false");
+    if (isGraded) {
+      formData.set("gradingCompany", gradingCompany);
+      formData.set("grade", grade);
+      formData.set("marketPrice", gradedPrice.trim() ? gradedPrice : "");
+    } else {
+      formData.set("marketPrice", estimatedPrice != null ? String(estimatedPrice) : "");
+    }
     formData.set(
       "pricesPaid",
       JSON.stringify(prices.map((p) => (p.trim() ? Number(p) : null)))
@@ -120,45 +169,141 @@ export default function AddCardModal({
             </select>
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1.5 text-xs text-muted">
-              Quantity
-              <input
-                type="number"
-                min={1}
-                value={quantity}
-                onChange={(e) => handleQuantityChange(e.target.value)}
-                className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
-              />
-            </label>
-            <label className="flex flex-col gap-1.5 text-xs text-muted">
-              Condition
-              <select
-                name="condition"
-                value={condition}
-                onChange={(e) => setCondition(e.target.value)}
-                className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+          <div className="flex flex-col gap-1.5 text-xs text-muted">
+            Raw or graded?
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setIsGraded(false)}
+                className={`rounded-lg py-2 text-sm font-semibold border ${
+                  !isGraded ? "bg-panel-2 border-teal text-ink" : "border-border text-muted"
+                }`}
               >
-                {CONDITIONS.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </label>
+                Raw
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsGraded(true)}
+                className={`rounded-lg py-2 text-sm font-semibold border ${
+                  isGraded ? "bg-panel-2 border-teal text-ink" : "border-border text-muted"
+                }`}
+              >
+                Graded
+              </button>
+            </div>
           </div>
 
-          {estimatedPrice != null && (
-            <div className="flex items-center justify-between text-xs bg-panel-2 border border-border rounded-lg px-3 py-2">
-              <span className="text-muted">Est. market value ({condition})</span>
-              <span className="font-semibold">${estimatedPrice.toFixed(2)}</span>
-            </div>
-          )}
-          {estimatedPrice != null && condition !== "Near Mint" && condition !== "Mint" && (
-            <p className="text-[10.5px] text-muted -mt-2">
-              pokemontcg.io only prices Near Mint (${nearMintPrice!.toFixed(2)}) — this is a rough
-              condition discount estimate, not a real quoted price.
-            </p>
+          {isGraded ? (
+            <>
+              <div className="flex flex-col gap-1.5 text-xs text-muted">
+                Grading company
+                <div className="grid grid-cols-5 gap-1.5">
+                  {GRADING_COMPANIES.map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setGradingCompany(c)}
+                      className={`rounded-lg py-1.5 text-xs font-semibold border ${
+                        gradingCompany === c ? "bg-panel-2 border-teal text-ink" : "border-border text-muted"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  Quantity
+                  <input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
+                    className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  Grade
+                  <input
+                    type="number"
+                    step="0.5"
+                    min={1}
+                    max={10}
+                    value={grade}
+                    onChange={(e) => setGrade(e.target.value)}
+                    className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                </label>
+              </div>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Market value ($)
+                <input
+                  type="number"
+                  step="0.01"
+                  min={0}
+                  placeholder={gradedPriceLoading ? "Looking up…" : "0.00"}
+                  value={gradedPrice}
+                  onChange={(e) => {
+                    setGradedPrice(e.target.value);
+                    setGradedPricePulled(false);
+                  }}
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <p className="text-[10.5px] text-muted -mt-2">
+                {gradingCompany === "TAG" || gradingCompany === "Other"
+                  ? "No pricing data source covers this grading company — enter the value yourself."
+                  : gradedPricePulled
+                    ? "Pulled from PokemonPriceTracker — median recent eBay sold price for this grade. Edit if you know better."
+                    : gradedPriceLoading
+                      ? "Looking up recent eBay sold prices for this grade…"
+                      : "No recent eBay sales found for this exact grade — enter the value yourself."}
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  Quantity
+                  <input
+                    type="number"
+                    min={1}
+                    value={quantity}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
+                    className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  />
+                </label>
+                <label className="flex flex-col gap-1.5 text-xs text-muted">
+                  Condition
+                  <select
+                    name="condition"
+                    value={condition}
+                    onChange={(e) => setCondition(e.target.value)}
+                    className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                  >
+                    {CONDITIONS.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              {estimatedPrice != null && (
+                <div className="flex items-center justify-between text-xs bg-panel-2 border border-border rounded-lg px-3 py-2">
+                  <span className="text-muted">Est. market value ({condition})</span>
+                  <span className="font-semibold">${estimatedPrice.toFixed(2)}</span>
+                </div>
+              )}
+              {estimatedPrice != null && condition !== "Near Mint" && condition !== "Mint" && (
+                <p className="text-[10.5px] text-muted -mt-2">
+                  pokemontcg.io only prices Near Mint (${nearMintPrice!.toFixed(2)}) — this is a rough
+                  condition discount estimate, not a real quoted price.
+                </p>
+              )}
+            </>
           )}
 
           {quantity === 1 ? (

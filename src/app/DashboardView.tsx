@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import type { CollectionEntry, MasterSet } from "@/types";
-import { groupCollectionEntries, groupSubtitle, type EntryGroup } from "@/lib/collectionGroups";
+import { groupCollectionEntries, groupSubtitle, conditionOrGradeLabel, type EntryGroup } from "@/lib/collectionGroups";
 import StatCard from "@/components/StatCard";
 import CardTile from "@/components/CardTile";
 import CopyPickerModal from "@/components/CopyPickerModal";
@@ -147,7 +147,10 @@ export default function DashboardView({
   }, [scopedDisposed]);
 
   const allGroups = useMemo(() => groupCollectionEntries(scopedOwned), [scopedOwned]);
-  const conditionOptions = useMemo(() => [...new Set(allGroups.map((g) => g.condition))].sort(), [allGroups]);
+  const conditionOptions = useMemo(
+    () => [...new Set(allGroups.map(conditionOrGradeLabel))].sort(),
+    [allGroups]
+  );
   const setOptions = useMemo(
     () => [...new Set(allGroups.map((g) => g.set_name).filter((s): s is string => Boolean(s)))].sort(),
     [allGroups]
@@ -155,7 +158,7 @@ export default function DashboardView({
   const groups = useMemo(() => {
     const filtered = allGroups.filter(
       (g) =>
-        (conditionFilter === ALL || g.condition === conditionFilter) &&
+        (conditionFilter === ALL || conditionOrGradeLabel(g) === conditionFilter) &&
         (setFilter === ALL || g.set_name === setFilter)
     );
     return [...filtered].sort((a, b) => {
