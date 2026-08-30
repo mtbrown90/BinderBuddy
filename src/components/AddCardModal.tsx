@@ -11,6 +11,7 @@ export default function AddCardModal({
   card,
   initialVariationKey,
   onClose,
+  onAdded,
 }: {
   card: {
     id: string;
@@ -21,6 +22,10 @@ export default function AddCardModal({
   };
   initialVariationKey?: string;
   onClose: () => void;
+  // Fires only when the card is actually added (not on cancel/backdrop-click)
+  // — for callers that need to react to a real add, distinct from the modal
+  // simply closing.
+  onAdded?: () => void;
 }) {
   const [variationKey, setVariationKey] = useState(initialVariationKey ?? card.variations[0]?.key ?? "normal");
   const [condition, setCondition] = useState<string>("Near Mint");
@@ -39,6 +44,7 @@ export default function AddCardModal({
     formData.set("marketPrice", estimatedPrice != null ? String(estimatedPrice) : "");
     startTransition(async () => {
       await addOfficialCardToCollection(formData);
+      onAdded?.();
       onClose();
     });
   }
