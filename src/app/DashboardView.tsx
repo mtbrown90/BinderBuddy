@@ -129,12 +129,6 @@ export default function DashboardView({
     return [];
   }, [mode, disposed, masterSetScope]);
 
-  const ownedStats = useMemo(() => {
-    const cards = scopedOwned.reduce((s, e) => s + e.quantity, 0);
-    const spent = scopedOwned.reduce((s, e) => s + costOf(e), 0);
-    const market = scopedOwned.reduce((s, e) => s + (Number(e.market_price) || 0) * e.quantity, 0);
-    return { cards, spent, market, unrealized: market - spent };
-  }, [scopedOwned]);
   const realized = useMemo(
     () => scopedDisposed.reduce((s, e) => s + (proceedsOf(e) - costOf(e)), 0),
     [scopedDisposed]
@@ -176,6 +170,17 @@ export default function DashboardView({
       }
     });
   }, [allGroups, sort, conditionFilter, setFilter]);
+
+  // Stat cards reflect what's actually shown in the grid below — filtered
+  // by condition/set, not just the broader view-mode scope — so the two
+  // never disagree with each other.
+  const ownedStats = useMemo(() => {
+    const filteredEntries = groups.flatMap((g) => g.entries);
+    const cards = filteredEntries.reduce((s, e) => s + e.quantity, 0);
+    const spent = filteredEntries.reduce((s, e) => s + costOf(e), 0);
+    const market = filteredEntries.reduce((s, e) => s + (Number(e.market_price) || 0) * e.quantity, 0);
+    return { cards, spent, market, unrealized: market - spent };
+  }, [groups]);
 
   const disposedSorted = useMemo(
     () =>
