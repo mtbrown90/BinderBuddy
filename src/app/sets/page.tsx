@@ -21,6 +21,7 @@ export default async function SetsPage() {
       officialSets={officialSets.map((s) => ({
         id: s.id,
         name: s.name,
+        series: s.series,
         releaseDate: s.releaseDate,
         images: { logo: s.images.logo },
       }))}

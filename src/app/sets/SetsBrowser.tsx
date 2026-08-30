@@ -10,9 +10,16 @@ import type { MasterSet } from "@/types";
 type OfficialSet = {
   id: string;
   name: string;
+  series: string;
   releaseDate: string;
   images: { logo: string };
 };
+
+const ALL = "all";
+
+function releaseYear(s: OfficialSet) {
+  return s.releaseDate.slice(0, 4);
+}
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type CardResult = {
@@ -46,6 +53,38 @@ export default function SetsBrowser({
   const debouncedQuery = useDebounced(query.trim(), 350);
   const searching = debouncedQuery.length >= 2;
 
+  const [seriesFilter, setSeriesFilter] = useState(ALL);
+  const [yearFilter, setYearFilter] = useState(ALL);
+  const [officialSort, setOfficialSort] = useState<"newest" | "oldest">("newest");
+  const [masterSort, setMasterSort] = useState<"recent" | "name">("recent");
+
+  // officialSets already arrives newest-first from the API, so taking series
+  // and years in the order they first appear keeps both dropdowns roughly
+  // reverse-chronological without a separate sort pass.
+  const seriesOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const s of officialSets) {
+      if (!seen.has(s.series)) {
+        seen.add(s.series);
+        list.push(s.series);
+      }
+    }
+    return list;
+  }, [officialSets]);
+  const yearOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const s of officialSets) {
+      const y = releaseYear(s);
+      if (!seen.has(y)) {
+        seen.add(y);
+        list.push(y);
+      }
+    }
+    return list;
+  }, [officialSets]);
+
   const [officialCards, setOfficialCards] = useState<CardResult[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
   const [openOfficialCard, setOpenOfficialCard] = useState<CardResult | null>(null);
@@ -73,20 +112,32 @@ export default function SetsBrowser({
     };
   }, [debouncedQuery, searching]);
 
-  const filteredMasterSets = useMemo(
-    () =>
-      query.trim()
-        ? masterSets.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-        : masterSets,
-    [masterSets, query]
-  );
-  const filteredOfficialSets = useMemo(
-    () =>
-      query.trim()
-        ? officialSets.filter((s) => s.name.toLowerCase().includes(query.trim().toLowerCase()))
-        : officialSets,
-    [officialSets, query]
-  );
+  const filteredMasterSets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = q ? masterSets.filter((s) => s.name.toLowerCase().includes(q)) : [...masterSets];
+    filtered.sort((a, b) =>
+      masterSort === "name"
+        ? a.name.localeCompare(b.name)
+        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return filtered;
+  }, [masterSets, query, masterSort]);
+
+  const filteredOfficialSets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const filtered = officialSets.filter(
+      (s) =>
+        (!q || s.name.toLowerCase().includes(q)) &&
+        (seriesFilter === ALL || s.series === seriesFilter) &&
+        (yearFilter === ALL || releaseYear(s) === yearFilter)
+    );
+    filtered.sort((a, b) =>
+      officialSort === "oldest"
+        ? a.releaseDate.localeCompare(b.releaseDate)
+        : b.releaseDate.localeCompare(a.releaseDate)
+    );
+    return filtered;
+  }, [officialSets, query, seriesFilter, yearFilter, officialSort]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -137,6 +188,16 @@ export default function SetsBrowser({
             <FolderPlus size={14} /> New master set
           </Link>
         </div>
+        {masterSets.length > 1 && (
+          <select
+            value={masterSort}
+            onChange={(e) => setMasterSort(e.target.value as typeof masterSort)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink mb-3"
+          >
+            <option value="recent">Sort: Recently created</option>
+            <option value="name">Sort: Name (A–Z)</option>
+          </select>
+        )}
         {filteredMasterSets.length === 0 ? (
           <div className="text-muted text-sm text-center py-8 bg-panel border border-border rounded-2xl">
             {query.trim()
@@ -170,6 +231,40 @@ export default function SetsBrowser({
               <Upload size={14} /> Import Excel
             </Link>
           )}
+        </div>
+        <div className="flex flex-wrap gap-2 mb-3">
+          <select
+            value={seriesFilter}
+            onChange={(e) => setSeriesFilter(e.target.value)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+          >
+            <option value={ALL}>All series</option>
+            {seriesOptions.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={yearFilter}
+            onChange={(e) => setYearFilter(e.target.value)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+          >
+            <option value={ALL}>All years</option>
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+          <select
+            value={officialSort}
+            onChange={(e) => setOfficialSort(e.target.value as typeof officialSort)}
+            className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+          >
+            <option value="newest">Sort: Newest first</option>
+            <option value="oldest">Sort: Oldest first</option>
+          </select>
         </div>
         {filteredOfficialSets.length === 0 ? (
           <div className="text-muted text-sm text-center py-8 bg-panel border border-border rounded-2xl">

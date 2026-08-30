@@ -19,6 +19,30 @@ function cardSubtitle(c: MasterSetCard) {
   return [c.set_name, number].filter(Boolean).join(" · ") || undefined;
 }
 
+type SortOption = "name" | "number" | "price";
+
+function sortCards(list: MasterSetCard[], sort: SortOption) {
+  const withIndex = list.map((c, i) => ({ c, i }));
+  withIndex.sort((a, b) => {
+    if (sort === "number") {
+      const na = Number(a.c.card_number);
+      const nb = Number(b.c.card_number);
+      if (!Number.isNaN(na) && !Number.isNaN(nb)) return na - nb || a.i - b.i;
+      return (a.c.card_number ?? "").localeCompare(b.c.card_number ?? "") || a.i - b.i;
+    }
+    if (sort === "price") {
+      const pa = a.c.market_price;
+      const pb = b.c.market_price;
+      if (pa == null && pb == null) return a.i - b.i;
+      if (pa == null) return 1;
+      if (pb == null) return -1;
+      return pb - pa || a.i - b.i;
+    }
+    return a.c.card_name.localeCompare(b.c.card_name) || a.i - b.i;
+  });
+  return withIndex.map(({ c }) => c);
+}
+
 export default function MasterSetGrid({
   masterSetId,
   cards,
@@ -31,6 +55,7 @@ export default function MasterSetGrid({
   const [open, setOpen] = useState<FullCard | null>(null);
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [sort, setSort] = useState<SortOption>("name");
 
   if (cards.length === 0) {
     return (
@@ -41,8 +66,8 @@ export default function MasterSetGrid({
   }
 
   const isOwned = (c: MasterSetCard) => ownedKeys.has(ownedKey(c.external_card_id, c.variation_type));
-  const owned = cards.filter(isOwned);
-  const missing = cards.filter((c) => !isOwned(c));
+  const owned = sortCards(cards.filter(isOwned), sort);
+  const missing = sortCards(cards.filter((c) => !isOwned(c)), sort);
 
   function remove(id: string) {
     startTransition(() => removeCardFromMasterSet(id, masterSetId));
@@ -93,6 +118,15 @@ export default function MasterSetGrid({
         <span className="text-xs text-muted">
           {owned.length} / {cards.length} owned
         </span>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOption)}
+          className="bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink"
+        >
+          <option value="name">Sort: Name (A–Z)</option>
+          <option value="number">Sort: Card number</option>
+          <option value="price">Sort: Price (high–low)</option>
+        </select>
       </div>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
         {[...missing, ...owned].map((c) => (
