@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       metadata: { pdfPurchaseId: purchase.id },
+      allow_promotion_codes: true,
       success_url: `${appUrl}/sets/master/${masterSetId}?checkout=success`,
       cancel_url: `${appUrl}/sets/master/${masterSetId}?checkout=cancelled`,
     });
