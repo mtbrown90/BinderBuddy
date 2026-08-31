@@ -1,5 +1,6 @@
 import { Store as StoreIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { listSets } from "@/lib/pokemontcg";
 import type { MasterSet } from "@/types";
 import PokemonAutoPopulateForm from "./PokemonAutoPopulateForm";
 import TypeAutoPopulateForm from "./TypeAutoPopulateForm";
@@ -8,11 +9,10 @@ import PlaceholderPdfForm from "./PlaceholderPdfForm";
 
 export default async function StorePage() {
   const supabase = await createClient();
-  const { data: masterSets } = await supabase
-    .from("master_sets")
-    .select("*")
-    .order("name", { ascending: true })
-    .returns<MasterSet[]>();
+  const [{ data: masterSets }, officialSets] = await Promise.all([
+    supabase.from("master_sets").select("*").order("name", { ascending: true }).returns<MasterSet[]>(),
+    listSets().catch(() => []),
+  ]);
 
   const sets = masterSets ?? [];
 
@@ -43,7 +43,10 @@ export default async function StorePage() {
 
         <div className="bg-panel border border-border rounded-2xl p-4">
           <h2 className="font-semibold text-sm mb-3">Printable placeholder PDF</h2>
-          <PlaceholderPdfForm masterSets={sets} />
+          <PlaceholderPdfForm
+            masterSets={sets}
+            officialSets={officialSets.map((s) => ({ id: s.id, name: s.name }))}
+          />
         </div>
       </div>
     </div>

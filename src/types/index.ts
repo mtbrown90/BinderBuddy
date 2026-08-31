@@ -123,7 +123,11 @@ export type PdfPurchaseStatus = "pending" | "completed" | "failed";
 export type MastersetPdfPurchase = {
   id: string;
   user_id: string;
-  master_set_id: string;
+  // Exactly one of these two is ever set — a custom master set, or an
+  // official/standard pokemontcg.io set (no local row, just its API id/name).
+  master_set_id: string | null;
+  official_set_id: string | null;
+  official_set_name: string | null;
   style: PdfStyle;
   stripe_checkout_session_id: string | null;
   stripe_payment_intent_id: string | null;

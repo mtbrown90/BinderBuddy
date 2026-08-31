@@ -232,10 +232,15 @@ create index idx_masterset_purchases_session on masterset_purchases(stripe_check
 -- regenerated on demand at download time from current checklist data, so
 -- this table only tracks payment status, same pending/completed pattern as
 -- masterset_purchases above.
+-- Target is polymorphic — either a custom master set or an official/
+-- standard pokemontcg.io set (identified by its API id/name, no local
+-- row to reference), exactly one of the two is ever set.
 create table masterset_pdf_purchases (
     id                          uuid primary key default gen_random_uuid(),
     user_id                     uuid not null references auth.users(id) on delete cascade,
-    master_set_id               uuid not null references master_sets(id) on delete cascade,
+    master_set_id               uuid references master_sets(id) on delete cascade,
+    official_set_id             text,
+    official_set_name           text,
     style                       text not null check (style in ('color', 'bw', 'text')),
     stripe_checkout_session_id  text,
     stripe_payment_intent_id    text,
@@ -244,7 +249,10 @@ create table masterset_pdf_purchases (
     status                      text not null default 'pending'
                                    check (status in ('pending', 'completed', 'failed')),
     created_at                  timestamptz not null default now(),
-    completed_at                timestamptz
+    completed_at                timestamptz,
+
+    constraint masterset_pdf_purchases_one_target
+      check ((master_set_id is not null) <> (official_set_id is not null))
 );
 
 create index idx_masterset_pdf_purchases_user on masterset_pdf_purchases(user_id);

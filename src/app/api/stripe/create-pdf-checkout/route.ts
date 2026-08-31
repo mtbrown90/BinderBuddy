@@ -21,32 +21,49 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const masterSetId = body?.masterSetId ? String(body.masterSetId) : "";
+  const officialSetId = body?.officialSetId ? String(body.officialSetId) : "";
+  const officialSetName = body?.officialSetName ? String(body.officialSetName) : "";
   const style = body?.style ? String(body.style) : "";
 
-  if (!masterSetId || !(style in STYLE_LABELS)) {
-    return NextResponse.json({ error: "masterSetId and a valid style are required" }, { status: 400 });
+  if ((!masterSetId && !(officialSetId && officialSetName)) || !(style in STYLE_LABELS)) {
+    return NextResponse.json(
+      { error: "A masterSetId, or an officialSetId + officialSetName, and a valid style are required" },
+      { status: 400 }
+    );
   }
 
-  // Confirm this master set actually belongs to the requesting user — the
-  // user's own RLS-scoped client can only see their own rows, so this also
-  // doubles as an ownership check.
-  const { data: masterSet } = await supabase
-    .from("master_sets")
-    .select("id, name")
-    .eq("id", masterSetId)
-    .single();
-  if (!masterSet) {
-    return NextResponse.json({ error: "Master set not found" }, { status: 404 });
+  let targetName: string;
+  const insertRow: Record<string, unknown> = {
+    user_id: user.id,
+    style,
+    amount_cents: PLACEHOLDER_PDF_PRICE_CENTS,
+  };
+
+  if (masterSetId) {
+    // Confirm this master set actually belongs to the requesting user — the
+    // user's own RLS-scoped client can only see their own rows, so this
+    // also doubles as an ownership check.
+    const { data: masterSet } = await supabase
+      .from("master_sets")
+      .select("id, name")
+      .eq("id", masterSetId)
+      .single();
+    if (!masterSet) {
+      return NextResponse.json({ error: "Master set not found" }, { status: 404 });
+    }
+    targetName = masterSet.name;
+    insertRow.master_set_id = masterSetId;
+  } else {
+    // Official sets aren't owned by anyone — browsing one is already open
+    // to any signed-in user, so no ownership check is needed here.
+    targetName = officialSetName;
+    insertRow.official_set_id = officialSetId;
+    insertRow.official_set_name = officialSetName;
   }
 
   const { data: purchase, error } = await supabase
     .from("masterset_pdf_purchases")
-    .insert({
-      user_id: user.id,
-      master_set_id: masterSetId,
-      style,
-      amount_cents: PLACEHOLDER_PDF_PRICE_CENTS,
-    })
+    .insert(insertRow)
     .select("id")
     .single();
 
@@ -55,6 +72,7 @@ export async function POST(req: NextRequest) {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
+  const redirectPath = masterSetId ? `/sets/master/${masterSetId}` : `/sets/${officialSetId}`;
 
   try {
     const stripe = getStripe();
@@ -66,8 +84,10 @@ export async function POST(req: NextRequest) {
             currency: "usd",
             unit_amount: PLACEHOLDER_PDF_PRICE_CENTS,
             product_data: {
-              name: `Placeholder PDF for "${masterSet.name}"`,
-              description: `Printable placeholder cards (${STYLE_LABELS[style]}) for whatever's missing from this checklist`,
+              name: `Placeholder PDF for "${targetName}"`,
+              description: `Printable placeholder cards (${STYLE_LABELS[style]}) for whatever's missing from this ${
+                masterSetId ? "checklist" : "set"
+              }`,
             },
           },
           quantity: 1,
@@ -75,8 +95,8 @@ export async function POST(req: NextRequest) {
       ],
       metadata: { pdfPurchaseId: purchase.id },
       allow_promotion_codes: true,
-      success_url: `${appUrl}/sets/master/${masterSetId}?checkout=success`,
-      cancel_url: `${appUrl}/sets/master/${masterSetId}?checkout=cancelled`,
+      success_url: `${appUrl}${redirectPath}?checkout=success`,
+      cancel_url: `${appUrl}${redirectPath}?checkout=cancelled`,
     });
 
     // Regular users can only INSERT/SELECT their own purchase rows (never

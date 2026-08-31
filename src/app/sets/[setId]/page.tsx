@@ -1,15 +1,19 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, FileDown } from "lucide-react";
 import { getSet, listCardsInSet, cardVariations } from "@/lib/pokemontcg";
 import { createClient } from "@/lib/supabase/server";
+import type { MastersetPdfPurchase } from "@/types";
 import CardGrid from "./CardGrid";
 
 export default async function SetDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ setId: string }>;
+  searchParams: Promise<{ checkout?: string }>;
 }) {
   const { setId } = await params;
+  const { checkout } = await searchParams;
   const supabase = await createClient();
 
   let set, cards;
@@ -29,9 +33,18 @@ export default async function SetDetailPage({
     );
   }
 
-  const { data: entries } = await supabase
-    .from("collection_entries")
-    .select("external_card_id, variation_type, market_price, quantity");
+  const [{ data: entries }, { data: pdfPurchases }] = await Promise.all([
+    supabase
+      .from("collection_entries")
+      .select("external_card_id, variation_type, market_price, quantity"),
+    supabase
+      .from("masterset_pdf_purchases")
+      .select("*")
+      .eq("official_set_id", setId)
+      .eq("status", "completed")
+      .order("created_at", { ascending: false })
+      .returns<MastersetPdfPurchase[]>(),
+  ]);
   const ownedKeys = new Set(
     (entries ?? []).map((e) => `${e.external_card_id}::${e.variation_type.toLowerCase()}`)
   );
@@ -78,6 +91,36 @@ export default async function SetDetailPage({
           </p>
         </div>
       </div>
+
+      {checkout === "success" && (
+        <div className="bg-panel-2 border border-teal/40 text-sm rounded-xl px-4 py-3 mb-5">
+          Payment received — your placeholder PDF download will appear below shortly. Refresh to check.
+        </div>
+      )}
+      {checkout === "cancelled" && (
+        <div className="bg-panel-2 border border-border text-sm text-muted rounded-xl px-4 py-3 mb-5">
+          Checkout cancelled — no charge was made.
+        </div>
+      )}
+
+      {pdfPurchases && pdfPurchases.length > 0 && (
+        <div className="bg-panel border border-border rounded-2xl p-4 mb-5">
+          <h2 className="font-semibold text-sm mb-3">Your placeholder PDFs</h2>
+          <div className="flex flex-col gap-2">
+            {pdfPurchases.map((p) => (
+              <a
+                key={p.id}
+                href={`/api/masterset-pdf/${p.id}`}
+                className="flex items-center gap-1.5 text-sm font-semibold bg-panel-2 border border-border rounded-lg px-3 py-2"
+              >
+                <FileDown size={14} className="text-teal" /> Download (
+                {p.style === "color" ? "full color" : p.style === "bw" ? "black & white" : "text-only"})
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+
       <CardGrid cards={gridCards} ownedKeys={ownedKeys} ownedValues={ownedValues} />
     </div>
   );
