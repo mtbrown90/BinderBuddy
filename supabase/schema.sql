@@ -342,6 +342,31 @@ create table calendar_events (
 
 create index idx_calendar_events_date on calendar_events(event_date);
 
+-- ---------- Event attendance (Going / Vending) ----------
+-- "going" only ever surfaces as an aggregate count (see get_going_counts()
+-- below — no policy grants row-level read access to going rows), while
+-- "vending" is publicly named — the point of that status is letting
+-- people know which sellers will be at a show.
+create table event_attendees (
+    event_id   uuid not null references calendar_events(id) on delete cascade,
+    user_id    uuid not null references profiles(id) on delete cascade,
+    status     text not null check (status in ('going', 'vending')),
+    created_at timestamptz not null default now(),
+    primary key (event_id, user_id)
+);
+
+-- Publicly callable aggregate — returns counts only, never row identities,
+-- so "going" stays anonymous at the database level, not just hidden in
+-- the UI. Same security-definer reasoning as is_current_user_restricted().
+create function get_going_counts() returns table(event_id uuid, going_count bigint) as $$
+  select event_id, count(*) as going_count
+  from event_attendees
+  where status = 'going'
+  group by event_id;
+$$ language sql security definer set search_path = public stable;
+
+grant execute on function get_going_counts() to authenticated;
+
 -- ---------- Trading forum: "looking for" want posts ----------
 -- Freeform, not tied to any owned card, so a user can post "looking for X"
 -- without exposing anything about what they actually own.
@@ -435,6 +460,7 @@ alter table discussion_categories enable row level security;
 alter table discussion_threads enable row level security;
 alter table discussion_replies enable row level security;
 alter table calendar_events enable row level security;
+alter table event_attendees enable row level security;
 alter table trade_wants enable row level security;
 alter table conversations enable row level security;
 alter table conversation_participants enable row level security;
@@ -523,6 +549,13 @@ create policy "update own or admin event" on calendar_events
 create policy "delete own or admin event" on calendar_events
   for delete
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
+
+create policy "manage own attendance" on event_attendees
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id and not is_current_user_restricted());
+create policy "read vending attendees" on event_attendees
+  for select using (status = 'vending');
 
 create policy "read all wants" on trade_wants for select using (true);
 create policy "insert own want" on trade_wants for insert with check (auth.uid() = user_id and not is_current_user_restricted());

@@ -210,6 +210,15 @@ export type AdminUserRow = {
   banned: boolean;
 };
 
+// Per-viewer attendance data for one event — not a DB-mirrored row shape,
+// built server-side in src/app/community/calendar/page.tsx from
+// event_attendees + get_going_counts().
+export type EventAttendance = {
+  goingCount: number;
+  vendors: string[];
+  myStatus: "going" | "vending" | null;
+};
+
 export type CalendarEvent = {
   id: string;
   user_id: string;

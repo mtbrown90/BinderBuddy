@@ -38,3 +38,31 @@ export async function deleteEvent(eventId: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/community/calendar");
 }
+
+// status null un-RSVPs; otherwise switches to (or creates) that status —
+// the primary key on (event_id, user_id) means this is always a single
+// row per person per event, so "going" and "vending" are mutually
+// exclusive without any extra bookkeeping.
+export async function setAttendance(eventId: string, status: "going" | "vending" | null) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  if (status === null) {
+    const { error } = await supabase
+      .from("event_attendees")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("user_id", user.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase
+      .from("event_attendees")
+      .upsert({ event_id: eventId, user_id: user.id, status }, { onConflict: "event_id,user_id" });
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/community/calendar");
+}

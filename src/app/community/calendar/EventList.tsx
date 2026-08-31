@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CalendarDays, MapPin, Plus, Trash2, ExternalLink, ChevronDown } from "lucide-react";
-import type { CalendarEvent } from "@/types";
+import { CalendarDays, MapPin, Plus, Trash2, ExternalLink, ChevronDown, Users, Store } from "lucide-react";
+import type { CalendarEvent, EventAttendance } from "@/types";
+import UsernameGate from "@/components/UsernameGate";
 import NewEventModal from "./NewEventModal";
-import { deleteEvent } from "./actions";
+import { deleteEvent, setAttendance } from "./actions";
 
 function formatDate(dateStr: string) {
   // event_date is a plain SQL date (yyyy-mm-dd) — parse as UTC so it
@@ -20,13 +21,36 @@ function formatDate(dateStr: string) {
 
 function EventCard({
   event,
+  attendance,
   canDelete,
+  username,
 }: {
   event: CalendarEvent;
+  attendance: EventAttendance;
   canDelete: boolean;
+  username: string | null;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [currentUsername, setCurrentUsername] = useState(username);
+  const [showVendingGate, setShowVendingGate] = useState(false);
+
+  function handleGoing() {
+    const next = attendance.myStatus === "going" ? null : "going";
+    startTransition(() => setAttendance(event.id, next));
+  }
+
+  function handleVendingClick() {
+    if (attendance.myStatus === "vending") {
+      startTransition(() => setAttendance(event.id, null));
+      return;
+    }
+    if (!currentUsername) {
+      setShowVendingGate(true);
+      return;
+    }
+    startTransition(() => setAttendance(event.id, "vending"));
+  }
 
   return (
     <div className="bg-panel border border-border rounded-2xl p-4">
@@ -44,6 +68,47 @@ function EventCard({
         </div>
       </div>
       {event.description && <p className="text-sm text-muted mt-3 whitespace-pre-wrap">{event.description}</p>}
+
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border flex-wrap">
+        <button
+          onClick={handleGoing}
+          disabled={pending}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border disabled:opacity-60 ${
+            attendance.myStatus === "going" ? "bg-panel-2 border-teal text-ink" : "border-border text-muted"
+          }`}
+        >
+          <Users size={12} /> Going{attendance.goingCount > 0 ? ` (${attendance.goingCount})` : ""}
+        </button>
+        <button
+          onClick={handleVendingClick}
+          disabled={pending}
+          className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold border disabled:opacity-60 ${
+            attendance.myStatus === "vending" ? "bg-panel-2 border-teal text-ink" : "border-border text-muted"
+          }`}
+        >
+          <Store size={12} /> Vending
+        </button>
+      </div>
+
+      {showVendingGate && (
+        <div className="mt-2">
+          <UsernameGate
+            username={currentUsername}
+            onSet={(u) => {
+              setCurrentUsername(u);
+              setShowVendingGate(false);
+              startTransition(() => setAttendance(event.id, "vending"));
+            }}
+          >
+            {null}
+          </UsernameGate>
+        </div>
+      )}
+
+      {attendance.vendors.length > 0 && (
+        <p className="text-xs text-muted mt-2">Vending: {attendance.vendors.join(", ")}</p>
+      )}
+
       <div className="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
         <div className="flex items-center gap-3 text-xs text-muted">
           <span>Posted by {event.author_username ?? "Unknown"}</span>
@@ -89,12 +154,14 @@ function EventCard({
 export default function EventList({
   upcoming,
   past,
+  attendanceByEvent,
   currentUserId,
   isAdmin,
   username,
 }: {
   upcoming: CalendarEvent[];
   past: CalendarEvent[];
+  attendanceByEvent: Record<string, EventAttendance>;
   currentUserId: string | null;
   isAdmin: boolean;
   username: string | null;
@@ -105,6 +172,8 @@ export default function EventList({
   function canDelete(event: CalendarEvent) {
     return isAdmin || currentUserId === event.user_id;
   }
+
+  const emptyAttendance: EventAttendance = { goingCount: 0, vendors: [], myStatus: null };
 
   return (
     <>
@@ -124,7 +193,13 @@ export default function EventList({
       ) : (
         <div className="flex flex-col gap-3">
           {upcoming.map((e) => (
-            <EventCard key={e.id} event={e} canDelete={canDelete(e)} />
+            <EventCard
+              key={e.id}
+              event={e}
+              attendance={attendanceByEvent[e.id] ?? emptyAttendance}
+              canDelete={canDelete(e)}
+              username={username}
+            />
           ))}
         </div>
       )}
@@ -141,7 +216,13 @@ export default function EventList({
           {showPast && (
             <div className="flex flex-col gap-3 mt-3">
               {past.map((e) => (
-                <EventCard key={e.id} event={e} canDelete={canDelete(e)} />
+                <EventCard
+                  key={e.id}
+                  event={e}
+                  attendance={attendanceByEvent[e.id] ?? emptyAttendance}
+                  canDelete={canDelete(e)}
+                  username={username}
+                />
               ))}
             </div>
           )}
