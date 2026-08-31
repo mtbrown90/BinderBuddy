@@ -17,6 +17,10 @@ create table profiles (
     -- publicly readable. Null until a user posts for the first time.
     username     text unique,
     is_admin     boolean not null default false,
+    -- Blocks Community posting/trading without a full ban — never exposed
+    -- via the column grant below, so other users can't see who's
+    -- restricted (see is_current_user_restricted()).
+    is_restricted boolean not null default false,
     created_at   timestamptz not null default now()
 );
 
@@ -39,6 +43,14 @@ grant update (username) on profiles to authenticated;
 -- than app-code discipline.
 revoke select on profiles from authenticated;
 grant select (id, username, is_admin, created_at) on profiles to authenticated;
+
+-- security definer so this can read is_restricted regardless of the
+-- caller's own column grant above (which never includes is_restricted).
+create function is_current_user_restricted() returns boolean as $$
+  select coalesce((select is_restricted from profiles where id = auth.uid()), false);
+$$ language sql security definer set search_path = public stable;
+
+grant execute on function is_current_user_restricted() to authenticated;
 
 create function handle_new_user()
 returns trigger as $$
@@ -171,6 +183,23 @@ create table collection_entries (
 
 create index idx_collection_user on collection_entries(user_id);
 create index idx_collection_external on collection_entries(external_card_id);
+
+-- Blocks only the is_for_trade toggle for a restricted user, not general
+-- collection management — they can still buy/sell/organize their own
+-- binder normally, just can't list things on the public Trading board.
+create function prevent_restricted_trade_listing() returns trigger as $$
+begin
+  if new.is_for_trade and exists (
+    select 1 from profiles p where p.id = new.user_id and p.is_restricted
+  ) then
+    raise exception 'This account is restricted from posting trade listings.';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger check_restricted_trade_listing before insert or update on collection_entries
+  for each row execute procedure prevent_restricted_trade_listing();
 
 -- ---------- Master set purchases ----------
 -- Paid auto-populate: pay a fee and every official card matching the given
@@ -462,7 +491,7 @@ create policy "read categories" on discussion_categories
 create policy "read all threads" on discussion_threads
   for select using (true);
 create policy "insert own thread" on discussion_threads
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id and not is_current_user_restricted());
 create policy "update own or admin thread" on discussion_threads
   for update
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin))
@@ -474,7 +503,7 @@ create policy "delete own or admin thread" on discussion_threads
 create policy "read all replies" on discussion_replies
   for select using (true);
 create policy "insert own reply" on discussion_replies
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id and not is_current_user_restricted());
 create policy "update own or admin reply" on discussion_replies
   for update
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin))
@@ -486,7 +515,7 @@ create policy "delete own or admin reply" on discussion_replies
 create policy "read all events" on calendar_events
   for select using (true);
 create policy "insert own event" on calendar_events
-  for insert with check (auth.uid() = user_id);
+  for insert with check (auth.uid() = user_id and not is_current_user_restricted());
 create policy "update own or admin event" on calendar_events
   for update
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin))
@@ -496,7 +525,7 @@ create policy "delete own or admin event" on calendar_events
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
 
 create policy "read all wants" on trade_wants for select using (true);
-create policy "insert own want" on trade_wants for insert with check (auth.uid() = user_id);
+create policy "insert own want" on trade_wants for insert with check (auth.uid() = user_id and not is_current_user_restricted());
 create policy "delete own or admin want" on trade_wants for delete
   using (auth.uid() = user_id or exists (select 1 from profiles p where p.id = auth.uid() and p.is_admin));
 
@@ -514,5 +543,6 @@ create policy "read messages in own conversations" on messages for select using 
 );
 create policy "send messages in own conversations" on messages for insert with check (
   auth.uid() = sender_id
+  and not is_current_user_restricted()
   and exists (select 1 from conversation_participants cp where cp.conversation_id = messages.conversation_id and cp.user_id = auth.uid())
 );

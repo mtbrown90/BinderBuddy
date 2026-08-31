@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, Wallet, FolderPlus, Store, MessagesSquare, LogOut } from "lucide-react";
+import { LayoutGrid, Wallet, FolderPlus, Store, MessagesSquare, ShieldAlert, LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import Logo from "@/components/Logo";
 
@@ -14,9 +14,10 @@ const TABS = [
   { href: "/community", label: "Community", icon: MessagesSquare },
 ];
 
-export default function NavBar() {
+export default function NavBar({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
+  const tabs = isAdmin ? [...TABS, { href: "/admin", label: "Admin", icon: ShieldAlert }] : TABS;
 
   async function logout() {
     const supabase = createClient();
@@ -33,7 +34,7 @@ export default function NavBar() {
           BinderBuddy
         </div>
         <nav className="flex gap-1">
-          {TABS.map(({ href, label, icon: Icon }) => {
+          {tabs.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link

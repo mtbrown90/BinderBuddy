@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import { createClient } from "@/lib/supabase/server";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const isAdmin = user ? await isCurrentUserAdmin() : false;
 
   return (
     <html
@@ -37,7 +39,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-ink">
-        {user && <NavBar />}
+        {user && <NavBar isAdmin={isAdmin} />}
         <main className="flex-1 w-full max-w-3xl mx-auto px-4 pb-24 pt-4 md:pb-10">
           {children}
         </main>

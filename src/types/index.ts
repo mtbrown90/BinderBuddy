@@ -198,6 +198,18 @@ export type Message = {
   author_username: string | null;
 };
 
+// Not a DB-mirrored type — built server-side in src/app/admin/page.tsx by
+// merging auth.admin.listUsers() with the profiles table.
+export type AdminUserRow = {
+  id: string;
+  email: string | null;
+  username: string | null;
+  created_at: string;
+  is_admin: boolean;
+  is_restricted: boolean;
+  banned: boolean;
+};
+
 export type CalendarEvent = {
   id: string;
   user_id: string;
