@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileDown } from "lucide-react";
-import { PLACEHOLDER_PDF_PRICE_CENTS } from "@/lib/pricing";
+import { PLACEHOLDER_PDF_PRICE_CENTS, PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS } from "@/lib/pricing";
 import type { MasterSet, PdfStyle } from "@/types";
 import MasterSetSelect, { NEW_MASTER_SET_VALUE } from "./MasterSetSelect";
 import { resolveMasterSetId } from "./resolveMasterSetId";
@@ -11,6 +11,7 @@ const STYLES: { value: PdfStyle; label: string }[] = [
   { value: "color", label: "Full color" },
   { value: "bw", label: "Black & white" },
   { value: "text", label: "Text only" },
+  { value: "all", label: "All 3" },
 ];
 
 type OfficialSet = { id: string; name: string };
@@ -31,7 +32,9 @@ export default function PlaceholderPdfForm({
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const price = (PLACEHOLDER_PDF_PRICE_CENTS / 100).toFixed(2);
+  const price = (
+    (style === "all" ? PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS : PLACEHOLDER_PDF_PRICE_CENTS) / 100
+  ).toFixed(2);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,7 +132,7 @@ export default function PlaceholderPdfForm({
 
       <div className="flex flex-col gap-1.5 text-xs text-muted">
         Style
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid grid-cols-4 gap-1.5">
           {STYLES.map((s) => {
             const selected = s.value === style;
             return (
@@ -154,7 +157,8 @@ export default function PlaceholderPdfForm({
         A print-ready PDF of card-shaped placeholders for every card still missing from{" "}
         {target === "master" ? "this checklist" : "this set"} — cut them out and slot them into empty
         binder pockets. Color and black &amp; white use the real card art; text-only skips the art
-        entirely.
+        entirely. &quot;All 3&quot; unlocks all three as separate downloads for less than buying them
+        one at a time.
       </p>
       {error && <p className="text-bad text-sm">{error}</p>}
       <button

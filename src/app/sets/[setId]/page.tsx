@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { ChevronLeft, FileDown } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { getSet, listCardsInSet, cardVariations } from "@/lib/pokemontcg";
 import { createClient } from "@/lib/supabase/server";
 import type { MastersetPdfPurchase } from "@/types";
+import PdfDownloadLinks from "@/components/PdfDownloadLinks";
 import CardGrid from "./CardGrid";
 
 export default async function SetDetailPage({
@@ -103,23 +104,7 @@ export default async function SetDetailPage({
         </div>
       )}
 
-      {pdfPurchases && pdfPurchases.length > 0 && (
-        <div className="bg-panel border border-border rounded-2xl p-4 mb-5">
-          <h2 className="font-semibold text-sm mb-3">Your placeholder PDFs</h2>
-          <div className="flex flex-col gap-2">
-            {pdfPurchases.map((p) => (
-              <a
-                key={p.id}
-                href={`/api/masterset-pdf/${p.id}`}
-                className="flex items-center gap-1.5 text-sm font-semibold bg-panel-2 border border-border rounded-lg px-3 py-2"
-              >
-                <FileDown size={14} className="text-teal" /> Download (
-                {p.style === "color" ? "full color" : p.style === "bw" ? "black & white" : "text-only"})
-              </a>
-            ))}
-          </div>
-        </div>
-      )}
+      <PdfDownloadLinks purchases={pdfPurchases ?? []} />
 
       <CardGrid cards={gridCards} ownedKeys={ownedKeys} ownedValues={ownedValues} />
     </div>

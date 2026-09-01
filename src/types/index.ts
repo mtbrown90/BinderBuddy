@@ -117,7 +117,10 @@ export type MastersetPurchase = {
   completed_at: string | null;
 };
 
-export type PdfStyle = "color" | "bw" | "text";
+// "all" is a purchase-level bundle (all three styles) — never passed to
+// the PDF renderer itself, which only ever knows color/bw/text
+// (see PlaceholderStyle in src/lib/placeholderPdf.ts).
+export type PdfStyle = "color" | "bw" | "text" | "all";
 export type PdfPurchaseStatus = "pending" | "completed" | "failed";
 
 export type MastersetPdfPurchase = {

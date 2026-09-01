@@ -241,7 +241,9 @@ create table masterset_pdf_purchases (
     master_set_id               uuid references master_sets(id) on delete cascade,
     official_set_id             text,
     official_set_name           text,
-    style                       text not null check (style in ('color', 'bw', 'text')),
+    -- 'all' is a bundle purchase — unlocks all three individual PDFs at
+    -- download time rather than being a style of its own.
+    style                       text not null check (style in ('color', 'bw', 'text', 'all')),
     stripe_checkout_session_id  text,
     stripe_payment_intent_id    text,
     amount_cents                integer not null,

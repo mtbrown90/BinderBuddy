@@ -30,3 +30,7 @@ export const BULK_AUTOPOPULATE_PRICE_CENTS = 1499;
 // missing cards/pages it comes out to, deliberately priced under what
 // similar third-party (Etsy-style) placeholder-card products charge.
 export const PLACEHOLDER_PDF_PRICE_CENTS = 200;
+
+// Bundle: all three styles for one purchase, priced under 3x the
+// single-style price ($6) to actually reward buying the bundle.
+export const PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS = 500;

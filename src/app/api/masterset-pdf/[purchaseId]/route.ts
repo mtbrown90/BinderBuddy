@@ -9,7 +9,7 @@ import type { MasterSetCard } from "@/types";
 // purchase row is looked up through the user-scoped client, so Supabase
 // RLS (masterset_pdf_purchases: "read own pdf purchases") is what actually
 // enforces that only the buyer can ever reach this data.
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ purchaseId: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ purchaseId: string }> }) {
   const { purchaseId } = await params;
   const supabase = await createClient();
 
@@ -22,6 +22,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pur
   if (!purchase || purchase.status !== "completed") {
     return new Response("Not found", { status: 404 });
   }
+
+  // "all" is a bundle purchase, not a real render style — pick which of
+  // the three individual PDFs to render via ?style=, defaulting to color.
+  // A single-style purchase always renders its own style, ignoring the
+  // query param (a purchase never grants a style it didn't pay for).
+  const requestedStyle = req.nextUrl.searchParams.get("style");
+  const renderStyle: PlaceholderStyle =
+    purchase.style === "all"
+      ? requestedStyle === "bw" || requestedStyle === "text"
+        ? requestedStyle
+        : "color"
+      : (purchase.style as PlaceholderStyle);
 
   let targetName: string;
   let missing: PlaceholderCard[];
@@ -74,7 +86,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pur
     );
   }
 
-  const pdfBytes = await generatePlaceholderPdf(targetName, missing, purchase.style as PlaceholderStyle);
+  const pdfBytes = await generatePlaceholderPdf(targetName, missing, renderStyle);
 
   const safeName = targetName.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
   return new Response(Buffer.from(pdfBytes), {
@@ -83,7 +95,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pur
       // "inline" (not "attachment") so it opens for preview in the browser
       // first, matching how most print-ready PDF downloads work — the
       // browser's own PDF viewer has a save/print button once it's open.
-      "Content-Disposition": `inline; filename="${safeName}-placeholders-${purchase.style}.pdf"`,
+      "Content-Disposition": `inline; filename="${safeName}-placeholders-${renderStyle}.pdf"`,
     },
   });
 }

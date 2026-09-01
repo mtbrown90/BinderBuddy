@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
-import { PLACEHOLDER_PDF_PRICE_CENTS } from "@/lib/pricing";
+import { PLACEHOLDER_PDF_PRICE_CENTS, PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS } from "@/lib/pricing";
 
 const STYLE_LABELS: Record<string, string> = {
   color: "full color",
   bw: "black & white",
   text: "text-only",
+  all: "all 3 styles",
 };
 
 export async function POST(req: NextRequest) {
@@ -32,11 +33,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const amountCents = style === "all" ? PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS : PLACEHOLDER_PDF_PRICE_CENTS;
+
   let targetName: string;
   const insertRow: Record<string, unknown> = {
     user_id: user.id,
     style,
-    amount_cents: PLACEHOLDER_PDF_PRICE_CENTS,
+    amount_cents: amountCents,
   };
 
   if (masterSetId) {
@@ -82,7 +85,7 @@ export async function POST(req: NextRequest) {
         {
           price_data: {
             currency: "usd",
-            unit_amount: PLACEHOLDER_PDF_PRICE_CENTS,
+            unit_amount: amountCents,
             product_data: {
               name: `Placeholder PDF for "${targetName}"`,
               description: `Printable placeholder cards (${STYLE_LABELS[style]}) for whatever's missing from this ${
