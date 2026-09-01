@@ -28,6 +28,7 @@ export default function CardTile({
   imageUrl,
   variationLabel,
   subtitle,
+  priceLabel,
   owned,
   onClick,
 }: {
@@ -35,6 +36,7 @@ export default function CardTile({
   imageUrl?: string | null;
   variationLabel?: string | null;
   subtitle?: string;
+  priceLabel?: string | null;
   owned?: boolean;
   onClick?: () => void;
 }) {
@@ -69,7 +71,14 @@ export default function CardTile({
       </div>
       <div className="mt-1.5">
         <div className="text-xs font-semibold leading-tight line-clamp-2">{name}</div>
-        {subtitle && <div className="text-[10px] text-muted">{subtitle}</div>}
+        {(subtitle || priceLabel) && (
+          <div className="flex items-center justify-between gap-1">
+            {subtitle && <div className="text-[10px] text-muted truncate">{subtitle}</div>}
+            {priceLabel && (
+              <div className="text-[10px] text-good font-semibold shrink-0">{priceLabel}</div>
+            )}
+          </div>
+        )}
         {variationLabel && (
           <div className="mt-1">
             <VariationBadge label={variationLabel} />

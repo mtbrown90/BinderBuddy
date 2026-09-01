@@ -164,15 +164,23 @@ export default function SetsBrowser({
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {officialCards.map((c) => (
-                <CardTile
-                  key={c.id}
-                  name={c.name}
-                  imageUrl={c.imageUrl}
-                  subtitle={c.setName}
-                  onClick={() => setOpenOfficialCard(c)}
-                />
-              ))}
+              {officialCards.map((c) => {
+                // Representative price for the tile — the variation search
+                // returns them in pokemontcg.io's own order (typically
+                // Normal/base first); the full per-variation breakdown
+                // shows once the card's opened in AddCardModal.
+                const price = c.variations[0]?.marketPrice;
+                return (
+                  <CardTile
+                    key={c.id}
+                    name={c.name}
+                    imageUrl={c.imageUrl}
+                    subtitle={c.setName}
+                    priceLabel={price != null ? `$${price.toFixed(2)}` : null}
+                    onClick={() => setOpenOfficialCard(c)}
+                  />
+                );
+              })}
             </div>
           )}
         </div>
