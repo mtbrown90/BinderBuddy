@@ -11,9 +11,8 @@ export default function SignupPage() {
   return (
     <div className="max-w-sm mx-auto mt-16 flex flex-col gap-6">
       <div className="text-center">
-        <div className="flex items-center justify-center gap-2 font-semibold text-2xl mb-1">
-          <Logo size={32} />
-          BinderBuddy
+        <div className="flex items-center justify-center mb-1">
+          <Logo size={96} />
         </div>
         <p className="text-muted text-sm">Create your account</p>
       </div>

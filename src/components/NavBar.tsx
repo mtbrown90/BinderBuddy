@@ -30,8 +30,7 @@ export default function NavBar({ isAdmin }: { isAdmin: boolean }) {
     <>
       <header className="hidden md:flex items-center justify-between border-b border-border px-6 py-4 max-w-3xl w-full mx-auto">
         <div className="flex items-center gap-2 font-semibold text-xl">
-          <Logo size={28} />
-          BinderBuddy
+          <Logo size={44} />
         </div>
         <nav className="flex gap-1">
           {tabs.map(({ href, label, icon: Icon }) => {
@@ -59,8 +58,7 @@ export default function NavBar({ isAdmin }: { isAdmin: boolean }) {
 
       <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 font-semibold text-lg">
-          <Logo size={24} />
-          BinderBuddy
+          <Logo size={36} />
         </div>
         <button onClick={logout} className="text-muted">
           <LogOut size={18} />
