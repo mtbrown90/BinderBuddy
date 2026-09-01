@@ -88,6 +88,24 @@ export default function SetsBrowser({
   const [officialCards, setOfficialCards] = useState<CardResult[]>([]);
   const [cardsLoading, setCardsLoading] = useState(false);
   const [openOfficialCard, setOpenOfficialCard] = useState<CardResult | null>(null);
+  const [openVariationKey, setOpenVariationKey] = useState<string | undefined>(undefined);
+
+  // One tile per printing, not per card — a card with both a 1st Edition
+  // Holofoil and an Unlimited Holofoil (same as the official-set browsing
+  // grid) shows as two adjacent tiles, each with its own price and the
+  // same holo-glow border variationLabel already gives a tile there.
+  const officialCardTiles = useMemo(
+    () =>
+      officialCards.flatMap((c) =>
+        c.variations.map((v) => ({
+          card: c,
+          variationKey: v.key,
+          variationLabel: v.label,
+          price: v.marketPrice,
+        }))
+      ),
+    [officialCards]
+  );
 
   useEffect(() => {
     if (!searching) return;
@@ -158,29 +176,26 @@ export default function SetsBrowser({
             <div className="text-muted text-sm text-center py-8 bg-panel border border-border rounded-2xl">
               Searching…
             </div>
-          ) : officialCards.length === 0 ? (
+          ) : officialCardTiles.length === 0 ? (
             <div className="text-muted text-sm text-center py-8 bg-panel border border-border rounded-2xl">
               No cards found.
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {officialCards.map((c) => {
-                // Representative price for the tile — the variation search
-                // returns them in pokemontcg.io's own order (typically
-                // Normal/base first); the full per-variation breakdown
-                // shows once the card's opened in AddCardModal.
-                const price = c.variations[0]?.marketPrice;
-                return (
-                  <CardTile
-                    key={c.id}
-                    name={c.name}
-                    imageUrl={c.imageUrl}
-                    subtitle={c.setName}
-                    priceLabel={price != null ? `$${price.toFixed(2)}` : null}
-                    onClick={() => setOpenOfficialCard(c)}
-                  />
-                );
-              })}
+              {officialCardTiles.map((t) => (
+                <CardTile
+                  key={`${t.card.id}-${t.variationKey}`}
+                  name={t.card.name}
+                  imageUrl={t.card.imageUrl}
+                  subtitle={t.card.setName}
+                  variationLabel={t.variationLabel}
+                  priceLabel={t.price != null ? `$${t.price.toFixed(2)}` : null}
+                  onClick={() => {
+                    setOpenOfficialCard(t.card);
+                    setOpenVariationKey(t.variationKey);
+                  }}
+                />
+              ))}
             </div>
           )}
         </div>
@@ -297,7 +312,16 @@ export default function SetsBrowser({
         )}
       </div>
 
-      {openOfficialCard && <AddCardModal card={openOfficialCard} onClose={() => setOpenOfficialCard(null)} />}
+      {openOfficialCard && (
+        <AddCardModal
+          card={openOfficialCard}
+          initialVariationKey={openVariationKey}
+          onClose={() => {
+            setOpenOfficialCard(null);
+            setOpenVariationKey(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }
