@@ -82,9 +82,21 @@ export async function getCard(id: string): Promise<PokemonCard> {
   return get<PokemonCard>(`/cards/${id}`);
 }
 
+// Trailing "<name> <number>" (e.g. "Piplup 71") narrows to that exact
+// printing instead of every card whose name contains "Piplup" — the
+// trailing token only counts as a card number if it contains a digit, so
+// a plain multi-word name search ("Mr Mime") still searches only by name.
+const TRAILING_NUMBER = /^(.*\S)\s+(\S*\d\S*)$/;
+
 export async function searchCards(query: string): Promise<PokemonCard[]> {
-  const q = `name:"*${query.replace(/"/g, "")}*"`;
-  return get<PokemonCard[]>(`/cards?q=${encodeURIComponent(q)}&pageSize=50`);
+  const trimmed = query.trim();
+  const match = trimmed.match(TRAILING_NUMBER);
+
+  const clauses = match
+    ? [`name:"*${escapeQueryValue(match[1])}*"`, `number:"${escapeQueryValue(match[2])}"`]
+    : [`name:"*${escapeQueryValue(trimmed)}*"`];
+
+  return get<PokemonCard[]>(`/cards?q=${encodeURIComponent(clauses.join(" "))}&pageSize=50`);
 }
 
 function escapeQueryValue(value: string) {
