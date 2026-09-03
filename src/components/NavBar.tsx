@@ -29,7 +29,7 @@ export default function NavBar({ isAdmin }: { isAdmin: boolean }) {
   return (
     <>
       <header className="hidden md:flex items-center justify-between border-b border-border px-6 py-4 max-w-3xl w-full mx-auto">
-        <div className="flex items-center gap-2 font-semibold text-xl">
+        <div className="flex items-center gap-2 font-semibold text-xl shrink-0">
           <Logo size={44} />
         </div>
         <nav className="flex gap-1">
@@ -50,17 +50,17 @@ export default function NavBar({ isAdmin }: { isAdmin: boolean }) {
         </nav>
         <button
           onClick={logout}
-          className="flex items-center gap-2 text-sm text-muted hover:text-bad"
+          className="flex items-center gap-2 text-sm text-muted hover:text-bad shrink-0"
         >
           <LogOut size={15} /> Log out
         </button>
       </header>
 
       <header className="flex md:hidden items-center justify-between px-4 py-3 border-b border-border">
-        <div className="flex items-center gap-2 font-semibold text-lg">
+        <div className="flex items-center gap-2 font-semibold text-lg shrink-0">
           <Logo size={36} />
         </div>
-        <button onClick={logout} className="text-muted">
+        <button onClick={logout} className="text-muted shrink-0">
           <LogOut size={18} />
         </button>
       </header>
