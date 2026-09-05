@@ -12,6 +12,9 @@ import type { MasterSetCard } from "@/types";
 export async function GET(req: NextRequest, { params }: { params: Promise<{ purchaseId: string }> }) {
   const { purchaseId } = await params;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const { data: purchase } = await supabase
     .from("masterset_pdf_purchases")
@@ -47,7 +50,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ purc
         .eq("master_set_id", purchase.master_set_id)
         .order("card_name", { ascending: true })
         .returns<MasterSetCard[]>(),
-      supabase.from("collection_entries").select("external_card_id, variation_type"),
+      // RLS also grants read access to any row another user has marked
+      // is_for_trade (for the Trading Board) — without this explicit
+      // filter, those cards would incorrectly count as owned here.
+      supabase.from("collection_entries").select("external_card_id, variation_type").eq("user_id", user?.id ?? ""),
     ]);
 
     if (!masterSet) {
@@ -64,7 +70,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ purc
   } else {
     const [cards, { data: entries }] = await Promise.all([
       listCardsInSet(purchase.official_set_id as string).catch(() => []),
-      supabase.from("collection_entries").select("external_card_id, variation_type"),
+      supabase.from("collection_entries").select("external_card_id, variation_type").eq("user_id", user?.id ?? ""),
     ]);
 
     const ownedKeys = new Set(

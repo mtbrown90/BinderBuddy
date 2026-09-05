@@ -7,10 +7,18 @@ import CollectionGrid from "./CollectionGrid";
 
 export default async function CollectionPage() {
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // RLS also grants read access to any row another user has marked
+  // is_for_trade (for the Trading Board) — without this explicit filter,
+  // those rows would leak into "My collection" alongside the owner's own.
   const [{ data: entries }, admin] = await Promise.all([
     supabase
       .from("collection_entries")
       .select("*")
+      .eq("user_id", user?.id ?? "")
       .order("created_at", { ascending: false })
       .returns<CollectionEntry[]>(),
     isCurrentUserAdmin(),

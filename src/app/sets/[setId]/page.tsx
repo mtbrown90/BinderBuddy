@@ -16,6 +16,9 @@ export default async function SetDetailPage({
   const { setId } = await params;
   const { checkout } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   let set, cards;
   try {
@@ -34,10 +37,14 @@ export default async function SetDetailPage({
     );
   }
 
+  // RLS also grants read access to any row another user has marked
+  // is_for_trade (for the Trading Board) — without this explicit filter,
+  // those cards would incorrectly show as "owned" here.
   const [{ data: entries }, { data: pdfPurchases }] = await Promise.all([
     supabase
       .from("collection_entries")
-      .select("external_card_id, variation_type, market_price, quantity"),
+      .select("external_card_id, variation_type, market_price, quantity")
+      .eq("user_id", user?.id ?? ""),
     supabase
       .from("masterset_pdf_purchases")
       .select("*")

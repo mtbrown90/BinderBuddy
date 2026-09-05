@@ -17,6 +17,9 @@ export default async function MasterSetDetailPage({
   const { setId } = await params;
   const { checkout } = await searchParams;
   const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   const [{ data: set }, { data: cards }, { data: entries }, { data: pdfPurchases }, admin] = await Promise.all([
     supabase.from("master_sets").select("*").eq("id", setId).single(),
@@ -26,7 +29,13 @@ export default async function MasterSetDetailPage({
       .eq("master_set_id", setId)
       .order("card_name", { ascending: true })
       .returns<MasterSetCard[]>(),
-    supabase.from("collection_entries").select("external_card_id, variation_type, market_price, quantity"),
+    // RLS also grants read access to any row another user has marked
+    // is_for_trade (for the Trading Board) — without this explicit filter,
+    // those cards would incorrectly show as "owned" here.
+    supabase
+      .from("collection_entries")
+      .select("external_card_id, variation_type, market_price, price_paid, quantity")
+      .eq("user_id", user?.id ?? ""),
     supabase
       .from("masterset_pdf_purchases")
       .select("*")
@@ -48,9 +57,11 @@ export default async function MasterSetDetailPage({
   // Same "value of what you own" math as the Dashboard — each entry's own
   // stored market_price (snapshotted at add time) times quantity.
   const ownedValues: Record<string, number> = {};
+  const ownedPaid: Record<string, number> = {};
   for (const e of entries ?? []) {
     const key = `${e.external_card_id}::${e.variation_type.toLowerCase()}`;
     ownedValues[key] = (ownedValues[key] ?? 0) + (Number(e.market_price) || 0) * e.quantity;
+    ownedPaid[key] = (ownedPaid[key] ?? 0) + (Number(e.price_paid) || 0) * e.quantity;
   }
   const existingCardIds = (cards ?? []).map((c) => c.external_card_id);
 
@@ -89,6 +100,7 @@ export default async function MasterSetDetailPage({
         existingCardIds={existingCardIds}
         ownedKeys={ownedKeys}
         ownedValues={ownedValues}
+        ownedPaid={ownedPaid}
         admin={admin}
       />
     </div>
