@@ -143,6 +143,8 @@ create table collection_entries (
     variation_type text not null,
     card_name      text not null,
     set_name       text,
+    card_number    text,
+    set_printed_total integer,
     image_url      text,
 
     -- null for graded entries — grade replaces condition conceptually

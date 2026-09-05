@@ -186,6 +186,8 @@ export async function importOfficialCards(
       variation_type: variation.label,
       card_name: card.name,
       set_name: card.set.name,
+      card_number: card.number,
+      set_printed_total: card.set.printedTotal,
       image_url: card.images.small,
       condition: row.condition,
       quantity: row.quantity,

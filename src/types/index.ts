@@ -53,6 +53,8 @@ export type CollectionEntry = {
   variation_type: string;
   card_name: string;
   set_name: string | null;
+  card_number: string | null;
+  set_printed_total: number | null;
   image_url: string | null;
   condition: string | null;
   is_graded: boolean;

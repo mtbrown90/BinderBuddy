@@ -105,6 +105,8 @@ export default function AddCardModal({
     formData.set("cardId", card.id);
     formData.set("cardName", card.name);
     formData.set("setName", card.setName);
+    formData.set("cardNumber", card.number ?? "");
+    formData.set("setPrintedTotal", card.printedTotal != null ? String(card.printedTotal) : "");
     formData.set("imageUrl", card.imageUrl);
     formData.set("variationType", variation?.label ?? "Normal");
     formData.set("isGraded", isGraded ? "true" : "false");

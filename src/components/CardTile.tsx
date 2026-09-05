@@ -27,6 +27,7 @@ export default function CardTile({
   name,
   imageUrl,
   variationLabel,
+  setInfoLabel,
   subtitle,
   priceLabel,
   secondaryLabel,
@@ -36,6 +37,9 @@ export default function CardTile({
   name: string;
   imageUrl?: string | null;
   variationLabel?: string | null;
+  // "Set Name · #4/102" — always the first line under the name, so a card
+  // looks the same regardless of which page it's viewed from.
+  setInfoLabel?: string | null;
   subtitle?: string;
   priceLabel?: string | null;
   secondaryLabel?: string | null;
@@ -73,6 +77,7 @@ export default function CardTile({
       </div>
       <div className="mt-1.5">
         <div className="text-xs font-semibold leading-tight line-clamp-2">{name}</div>
+        {setInfoLabel && <div className="text-[10px] text-muted truncate">{setInfoLabel}</div>}
         {(subtitle || priceLabel) && (
           <div className="flex items-center justify-between gap-1">
             {subtitle && <div className="text-[10px] text-muted truncate">{subtitle}</div>}

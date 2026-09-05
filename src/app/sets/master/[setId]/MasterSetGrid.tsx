@@ -5,6 +5,7 @@ import { RefreshCw, X } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSetCard } from "@/types";
+import { setIdentityLabel } from "@/lib/collectionGroups";
 import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
@@ -20,11 +21,6 @@ type FullCard = {
 
 function ownedKey(externalCardId: string, variationType: string) {
   return `${externalCardId}::${variationType.toLowerCase()}`;
-}
-
-function cardSubtitle(c: MasterSetCard) {
-  const number = c.card_number ? `#${c.card_number}${c.set_printed_total ? `/${c.set_printed_total}` : ""}` : null;
-  return [c.set_name, number].filter(Boolean).join(" · ") || undefined;
 }
 
 type SortOption = "name-asc" | "name-desc" | "number-asc" | "number-desc" | "price-desc" | "price-asc";
@@ -225,7 +221,7 @@ export default function MasterSetGrid({
             <CardTile
               name={c.card_name}
               imageUrl={c.image_url}
-              subtitle={cardSubtitle(c)}
+              setInfoLabel={setIdentityLabel(c)}
               variationLabel={loadingId === c.id ? "Loading…" : c.variation_type}
               priceLabel={c.market_price != null ? `$${Number(c.market_price).toFixed(2)}` : null}
               secondaryLabel={

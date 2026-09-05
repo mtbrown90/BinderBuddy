@@ -13,6 +13,8 @@ export type EntryGroup = {
   image_url: string | null;
   variation_type: string;
   set_name: string | null;
+  card_number: string | null;
+  set_printed_total: number | null;
   condition: string | null;
   is_graded: boolean;
   grading_company: string | null;
@@ -45,6 +47,8 @@ export function groupCollectionEntries(entries: CollectionEntry[]): EntryGroup[]
     image_url: group[0].image_url,
     variation_type: group[0].variation_type,
     set_name: group[0].set_name,
+    card_number: group[0].card_number,
+    set_printed_total: group[0].set_printed_total,
     condition: group[0].condition,
     is_graded: group[0].is_graded,
     grading_company: group[0].grading_company,
@@ -64,4 +68,18 @@ export function conditionOrGradeLabel(g: EntryGroup): string {
 
 export function groupSubtitle(g: EntryGroup): string {
   return `${conditionOrGradeLabel(g)} · Qty ${g.quantity}`;
+}
+
+// "Set Name · #4/102" — the same identity line master_set_cards checklist
+// tiles already show, so a card looks the same no matter which page it's
+// viewed from. Works from either an EntryGroup or a raw CollectionEntry.
+export function setIdentityLabel(card: {
+  set_name: string | null;
+  card_number: string | null;
+  set_printed_total: number | null;
+}): string | undefined {
+  const number = card.card_number
+    ? `#${card.card_number}${card.set_printed_total ? `/${card.set_printed_total}` : ""}`
+    : null;
+  return [card.set_name, number].filter(Boolean).join(" · ") || undefined;
 }

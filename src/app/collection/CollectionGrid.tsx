@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { CollectionEntry } from "@/types";
-import { groupCollectionEntries, groupSubtitle, type EntryGroup } from "@/lib/collectionGroups";
+import { groupCollectionEntries, groupSubtitle, setIdentityLabel, type EntryGroup } from "@/lib/collectionGroups";
 import CardTile from "@/components/CardTile";
 import CopyPickerModal from "@/components/CopyPickerModal";
 import EntryDetailModal from "./EntryDetailModal";
@@ -72,6 +72,7 @@ export default function CollectionGrid({ entries }: { entries: CollectionEntry[]
                         key={g.key}
                         name={g.card_name}
                         imageUrl={g.image_url}
+                        setInfoLabel={setIdentityLabel(g)}
                         subtitle={groupSubtitle(g)}
                         variationLabel={g.variation_type}
                         priceLabel={g.totalMarketValue > 0 ? `$${g.totalMarketValue.toFixed(2)}` : null}
@@ -84,6 +85,7 @@ export default function CollectionGrid({ entries }: { entries: CollectionEntry[]
                         key={e.id}
                         name={e.card_name}
                         imageUrl={e.image_url}
+                        setInfoLabel={setIdentityLabel(e)}
                         subtitle={historySubtitle(e)}
                         variationLabel={e.variation_type}
                         priceLabel={e.market_price != null ? `$${e.market_price.toFixed(2)}` : null}

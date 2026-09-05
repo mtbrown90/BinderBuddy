@@ -35,6 +35,8 @@ export async function addOfficialCardToCollection(formData: FormData) {
     variation_type: String(formData.get("variationType")),
     card_name: String(formData.get("cardName")),
     set_name: String(formData.get("setName")),
+    card_number: String(formData.get("cardNumber") || "") || null,
+    set_printed_total: formData.get("setPrintedTotal") ? Number(formData.get("setPrintedTotal")) : null,
     image_url: String(formData.get("imageUrl") || "") || null,
     // A graded card's condition is meaningless — grade replaces it.
     condition: isGraded ? null : String(formData.get("condition")),

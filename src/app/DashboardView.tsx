@@ -4,7 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import type { CollectionEntry, MasterSet } from "@/types";
-import { groupCollectionEntries, groupSubtitle, conditionOrGradeLabel, type EntryGroup } from "@/lib/collectionGroups";
+import {
+  groupCollectionEntries,
+  groupSubtitle,
+  conditionOrGradeLabel,
+  setIdentityLabel,
+  type EntryGroup,
+} from "@/lib/collectionGroups";
 import StatCard from "@/components/StatCard";
 import CardTile from "@/components/CardTile";
 import CopyPickerModal from "@/components/CopyPickerModal";
@@ -336,6 +342,7 @@ export default function DashboardView({
                 key={e.id}
                 name={e.card_name}
                 imageUrl={e.image_url}
+                setInfoLabel={setIdentityLabel(e)}
                 subtitle={historySubtitle(e)}
                 variationLabel={e.variation_type}
                 onClick={() => setOpen(e)}
@@ -356,6 +363,7 @@ export default function DashboardView({
               key={g.key}
               name={g.card_name}
               imageUrl={g.image_url}
+              setInfoLabel={setIdentityLabel(g)}
               subtitle={groupSubtitle(g)}
               variationLabel={g.variation_type}
               onClick={() => openGroup(g)}
