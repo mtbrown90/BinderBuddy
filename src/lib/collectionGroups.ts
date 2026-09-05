@@ -22,6 +22,7 @@ export type EntryGroup = {
   // ordering and as this group's representative market price for sorting.
   latestCreatedAt: string;
   totalMarketValue: number;
+  totalPricePaid: number;
 };
 
 // Two different grades of the same card are as distinct as two different
@@ -51,6 +52,7 @@ export function groupCollectionEntries(entries: CollectionEntry[]): EntryGroup[]
     quantity: group.reduce((s, e) => s + e.quantity, 0),
     latestCreatedAt: group.reduce((max, e) => (e.created_at > max ? e.created_at : max), group[0].created_at),
     totalMarketValue: group.reduce((s, e) => s + (Number(e.market_price) || 0) * e.quantity, 0),
+    totalPricePaid: group.reduce((s, e) => s + (Number(e.price_paid) || 0) * e.quantity, 0),
   }));
 }
 

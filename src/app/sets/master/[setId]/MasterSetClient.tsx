@@ -14,6 +14,7 @@ export default function MasterSetClient({
   existingCardIds,
   ownedKeys,
   ownedValues,
+  ownedPaid,
   admin,
 }: {
   masterSetId: string;
@@ -21,6 +22,7 @@ export default function MasterSetClient({
   existingCardIds: string[];
   ownedKeys: Set<string>;
   ownedValues: Record<string, number>;
+  ownedPaid: Record<string, number>;
   admin: boolean;
 }) {
   const [mode, setMode] = useState<SearchMode>("add");
@@ -59,6 +61,7 @@ export default function MasterSetClient({
         cards={cards}
         ownedKeys={ownedKeys}
         ownedValues={ownedValues}
+        ownedPaid={ownedPaid}
         searchQuery={mode === "search" ? query : ""}
       />
     </>

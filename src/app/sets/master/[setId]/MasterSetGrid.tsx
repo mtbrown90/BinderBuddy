@@ -67,12 +67,14 @@ export default function MasterSetGrid({
   cards,
   ownedKeys,
   ownedValues,
+  ownedPaid,
   searchQuery = "",
 }: {
   masterSetId: string;
   cards: MasterSetCard[];
   ownedKeys: Set<string>;
   ownedValues: Record<string, number>;
+  ownedPaid: Record<string, number>;
   searchQuery?: string;
 }) {
   const [open, setOpen] = useState<FullCard | null>(null);
@@ -225,6 +227,12 @@ export default function MasterSetGrid({
               imageUrl={c.image_url}
               subtitle={cardSubtitle(c)}
               variationLabel={loadingId === c.id ? "Loading…" : c.variation_type}
+              priceLabel={c.market_price != null ? `$${Number(c.market_price).toFixed(2)}` : null}
+              secondaryLabel={
+                isOwned(c) && ownedPaid[ownedKey(c.external_card_id, c.variation_type)] > 0
+                  ? `Paid $${ownedPaid[ownedKey(c.external_card_id, c.variation_type)].toFixed(2)}`
+                  : null
+              }
               owned={isOwned(c)}
               onClick={() => openCard(c)}
             />

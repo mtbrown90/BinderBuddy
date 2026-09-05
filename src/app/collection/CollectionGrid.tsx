@@ -74,6 +74,8 @@ export default function CollectionGrid({ entries }: { entries: CollectionEntry[]
                         imageUrl={g.image_url}
                         subtitle={groupSubtitle(g)}
                         variationLabel={g.variation_type}
+                        priceLabel={g.totalMarketValue > 0 ? `$${g.totalMarketValue.toFixed(2)}` : null}
+                        secondaryLabel={g.totalPricePaid > 0 ? `Paid $${g.totalPricePaid.toFixed(2)}` : null}
                         onClick={() => openGroup(g)}
                       />
                     ))
@@ -84,6 +86,7 @@ export default function CollectionGrid({ entries }: { entries: CollectionEntry[]
                         imageUrl={e.image_url}
                         subtitle={historySubtitle(e)}
                         variationLabel={e.variation_type}
+                        priceLabel={e.market_price != null ? `$${e.market_price.toFixed(2)}` : null}
                         onClick={() => setOpen(e)}
                       />
                     ))}
