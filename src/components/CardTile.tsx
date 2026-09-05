@@ -48,14 +48,14 @@ export default function CardTile({
       <div
         className={`relative aspect-[5/7] bg-panel-2 border border-border rounded-lg overflow-hidden ${
           holo ? "shadow-[0_0_0_1.5px_var(--teal),0_0_18px_-4px_rgba(193,53,132,0.6)]" : ""
-        } ${owned ? "ring-2 ring-good" : ""}`}
+        } ${owned ? "ring-2 ring-good" : owned === false ? "ring-2 ring-bad" : ""}`}
       >
         {imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt={name}
-            className={`w-full h-full object-cover ${owned === false ? "grayscale opacity-60" : ""}`}
+            className="w-full h-full object-cover"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}
