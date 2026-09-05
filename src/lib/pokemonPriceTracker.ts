@@ -5,11 +5,15 @@
 // Credit-economical by design: a bare name search (e.g. "Charizard") can
 // match 50+ cards and burn the whole free-tier daily budget in one call, so
 // every lookup here is a two-step, tightly-scoped flow:
-//   1. search "<name> <set>" with limit=1, no eBay data (1 credit) — this
-//      combination reliably narrows to the exact printing.
+//   1. search "<name> <set>" with limit=5, no eBay data (~5 credits) — a set
+//      can have several printings sharing the same base name (regular /
+//      full art / alternate full art / secret rare GX-VMAX-etc. variants,
+//      often priced 5-10x apart from each other), so cardNumber below picks
+//      the exact printing out of these candidates rather than trusting
+//      whichever one the search ranks first.
 //   2. re-fetch that one card by tcgPlayerId with eBay data (2 credits) to
 //      get its actual graded sales.
-// ~3 credits per lookup total, vs. 100+ for a naive bare-name search.
+// ~7 credits per lookup total, vs. 100+ for a naive bare-name search.
 const BASE_URL = "https://www.pokemonpricetracker.com/api/v2/cards";
 
 // TAG and "Other" aren't covered by this API's eBay grade breakdown at
@@ -38,6 +42,9 @@ type SalesByGrade = {
 type ApiCard = {
   tcgPlayerId?: string;
   externalCatalogId?: string;
+  // e.g. "215/236" — used to pick the exact printing out of same-named
+  // search results, not shown to the user.
+  cardNumber?: string;
   ebay?: { salesByGrade?: Record<string, SalesByGrade> };
 };
 
@@ -49,9 +56,19 @@ async function safeJson(res: Response): Promise<unknown> {
   }
 }
 
+// "215/236" matches a search result's cardNumber against the card's own
+// collector number — the number alone (before the "/") is enough, since a
+// printing's number is unique within its set even though the two sides of
+// a secret rare's fraction don't always agree with printedTotal.
+function numberMatches(resultNumber: string | undefined, cardNumber: string): boolean {
+  if (!resultNumber) return false;
+  return resultNumber.split("/")[0].trim() === cardNumber.trim();
+}
+
 export async function getGradedPrice(params: {
   cardName: string;
   setName: string;
+  cardNumber?: string;
   company: string;
   grade: number;
 }): Promise<number | null> {
@@ -63,12 +80,18 @@ export async function getGradedPrice(params: {
   try {
     const query = `${params.cardName} ${params.setName}`.trim();
     const searchRes = await fetch(
-      `${BASE_URL}?search=${encodeURIComponent(query)}&includeEbay=false&limit=1`,
+      `${BASE_URL}?search=${encodeURIComponent(query)}&includeEbay=false&limit=5`,
       { headers: auth }
     );
     if (!searchRes.ok) return null;
     const searchJson = (await safeJson(searchRes)) as { data?: ApiCard | ApiCard[] } | null;
-    const found = Array.isArray(searchJson?.data) ? searchJson?.data[0] : searchJson?.data;
+    const results = Array.isArray(searchJson?.data) ? searchJson.data : searchJson?.data ? [searchJson.data] : [];
+    // Multiple printings of a set often share the same base name (regular,
+    // full art, alternate full art, secret rare, ...) at wildly different
+    // values — prefer the one whose collector number actually matches
+    // rather than trusting the search's own ranking.
+    const found =
+      (params.cardNumber && results.find((r) => numberMatches(r.cardNumber, params.cardNumber!))) || results[0];
     if (!found?.tcgPlayerId) return null;
 
     const detailRes = await fetch(

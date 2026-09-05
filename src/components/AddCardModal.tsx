@@ -56,10 +56,11 @@ export default function AddCardModal({
     let cancelled = false;
     const t = setTimeout(async () => {
       setGradedPriceLoading(true);
+      const cardNumberParam = card.number ? `&cardNumber=${encodeURIComponent(card.number)}` : "";
       const price = await fetch(
         `/api/graded-price?cardName=${encodeURIComponent(card.name)}&setName=${encodeURIComponent(
           card.setName
-        )}&company=${encodeURIComponent(gradingCompany)}&grade=${gradeNum}`
+        )}${cardNumberParam}&company=${encodeURIComponent(gradingCompany)}&grade=${gradeNum}`
       )
         .then((r) => r.json())
         .then((d) => d.price as number | null)
@@ -78,7 +79,7 @@ export default function AddCardModal({
       cancelled = true;
       clearTimeout(t);
     };
-  }, [isGraded, gradingCompany, grade, card.name, card.setName]);
+  }, [isGraded, gradingCompany, grade, card.name, card.setName, card.number]);
 
   function handleQuantityChange(raw: string) {
     const n = Math.max(1, Number(raw) || 1);

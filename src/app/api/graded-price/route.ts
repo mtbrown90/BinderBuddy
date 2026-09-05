@@ -4,6 +4,7 @@ import { getGradedPrice } from "@/lib/pokemonPriceTracker";
 export async function GET(req: NextRequest) {
   const cardName = req.nextUrl.searchParams.get("cardName")?.trim() ?? "";
   const setName = req.nextUrl.searchParams.get("setName")?.trim() ?? "";
+  const cardNumber = req.nextUrl.searchParams.get("cardNumber")?.trim() || undefined;
   const company = req.nextUrl.searchParams.get("company")?.trim() ?? "";
   const grade = Number(req.nextUrl.searchParams.get("grade"));
 
@@ -11,6 +12,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ price: null, error: "Missing cardName, company, or grade" }, { status: 400 });
   }
 
-  const price = await getGradedPrice({ cardName, setName, company, grade });
+  const price = await getGradedPrice({ cardName, setName, cardNumber, company, grade });
   return NextResponse.json({ price });
 }
