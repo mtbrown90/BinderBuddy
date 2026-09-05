@@ -4,6 +4,7 @@ import "./globals.css";
 import NavBar from "@/components/NavBar";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -43,6 +44,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1 w-full max-w-3xl mx-auto px-4 pb-24 pt-4 md:pb-10">
           {children}
         </main>
+        <Analytics />
       </body>
     </html>
   );
