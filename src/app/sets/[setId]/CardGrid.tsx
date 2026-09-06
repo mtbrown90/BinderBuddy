@@ -134,6 +134,7 @@ export default function CardGrid({
               name={c.name}
               imageUrl={c.imageUrl}
               subtitle={`#${c.number}/${c.printedTotal}`}
+              priceLabel={tilePrice(c) != null ? `$${tilePrice(c)!.toFixed(2)}` : null}
               variationLabel={c.variationLabel}
               owned={isOwned(c)}
               onClick={() => setOpen(c)}
