@@ -12,6 +12,7 @@ type OfficialSet = {
   name: string;
   series: string;
   releaseDate: string;
+  printedTotal: number;
   images: { logo: string };
 };
 
@@ -43,10 +44,12 @@ function useDebounced<T>(value: T, delayMs: number) {
 export default function SetsBrowser({
   officialSets,
   masterSets,
+  ownedCountsBySet,
   isAdmin,
 }: {
   officialSets: OfficialSet[];
   masterSets: MasterSet[];
+  ownedCountsBySet: Record<string, number>;
   isAdmin: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -306,6 +309,9 @@ export default function SetsBrowser({
                 <img src={s.images.logo} alt={s.name} className="h-10 object-contain" />
                 <span className="text-xs font-medium leading-tight">{s.name}</span>
                 <span className="text-[10px] text-muted">{s.releaseDate}</span>
+                <span className="text-[10px] text-good font-semibold">
+                  {ownedCountsBySet[s.name] ?? 0}/{s.printedTotal} owned
+                </span>
               </Link>
             ))}
           </div>
