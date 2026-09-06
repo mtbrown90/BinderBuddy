@@ -1,8 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
+import { matchesCardQuery } from "@/lib/cardMatch";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type GridTile = {
@@ -36,6 +38,7 @@ export default function CardGrid({
   const [open, setOpen] = useState<GridTile | null>(null);
   const [sort, setSort] = useState<SortOption>("number-asc");
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
+  const [query, setQuery] = useState("");
 
   const tileKey = (c: GridTile) => `${c.id}::${c.variationLabel.toLowerCase()}`;
   const isOwned = (c: GridTile) => ownedKeys.has(tileKey(c));
@@ -50,6 +53,7 @@ export default function CardGrid({
 
   const sorted = useMemo(() => {
     const filtered = cards.filter((c) => {
+      if (!matchesCardQuery(c.name, c.number, query)) return false;
       if (ownedFilter === "owned") return isOwned(c);
       if (ownedFilter === "unowned") return !isOwned(c);
       return true;
@@ -78,7 +82,7 @@ export default function CardGrid({
     });
     return withIndex.map(({ c }) => c);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards, sort, ownedFilter, ownedKeys]);
+  }, [cards, sort, ownedFilter, ownedKeys, query]);
 
   return (
     <>
@@ -86,6 +90,15 @@ export default function CardGrid({
         Owned: {ownedCount}/{cards.length} · Owned value: ${ownedValue.toFixed(2)} · Cost to complete: $
         {costToComplete.toFixed(2)}
       </p>
+      <div className="relative mb-3">
+        <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search this set by name or number…"
+          className="w-full bg-panel-2 border border-border rounded-full pl-9 pr-4 py-2 text-sm text-ink placeholder:text-muted"
+        />
+      </div>
       <div className="flex flex-wrap gap-2 mb-3">
         <select
           value={ownedFilter}

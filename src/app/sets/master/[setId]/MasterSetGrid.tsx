@@ -6,6 +6,7 @@ import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSetCard } from "@/types";
 import { setIdentityLabel } from "@/lib/collectionGroups";
+import { matchesCardQuery } from "@/lib/cardMatch";
 import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
@@ -109,9 +110,7 @@ export default function MasterSetGrid({
   const costToComplete = cards
     .filter((c) => !isOwned(c))
     .reduce((s, c) => s + (Number(c.market_price) || 0), 0);
-  const searched = searchQuery.trim()
-    ? cards.filter((c) => c.card_name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
-    : cards;
+  const searched = cards.filter((c) => matchesCardQuery(c.card_name, c.card_number, searchQuery));
   const visible =
     ownedFilter === "owned"
       ? searched.filter(isOwned)

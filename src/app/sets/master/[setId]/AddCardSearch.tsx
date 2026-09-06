@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Search, Plus, Check } from "lucide-react";
+import { Search, Plus, Check, X } from "lucide-react";
 import { addCardToMasterSet } from "./actions";
 
 type CardResult = {
@@ -12,8 +12,6 @@ type CardResult = {
   imageUrl: string;
 };
 
-export type SearchMode = "search" | "add";
-
 function useDebounced<T>(value: T, delayMs: number) {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -23,23 +21,21 @@ function useDebounced<T>(value: T, delayMs: number) {
   return debounced;
 }
 
+// A card not yet in the checklist — separate from the always-visible
+// "search this checklist" box, since that one filters cards already
+// added while this one searches the full pokemontcg.io catalog.
 export default function AddCardSearch({
   masterSetId,
   existingCardIds,
-  mode,
-  onModeChange,
-  query,
-  onQueryChange,
+  onClose,
 }: {
   masterSetId: string;
   existingCardIds: string[];
-  mode: SearchMode;
-  onModeChange: (mode: SearchMode) => void;
-  query: string;
-  onQueryChange: (query: string) => void;
+  onClose: () => void;
 }) {
+  const [query, setQuery] = useState("");
   const debouncedQuery = useDebounced(query.trim(), 350);
-  const searching = mode === "add" && debouncedQuery.length >= 2;
+  const searching = debouncedQuery.length >= 2;
 
   const [results, setResults] = useState<CardResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,82 +74,82 @@ export default function AddCardSearch({
   }
 
   return (
-    <div>
-      <div className="flex gap-2 mb-3">
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            value={query}
-            onChange={(e) => onQueryChange(e.target.value)}
-            placeholder={mode === "search" ? "Search cards in this checklist…" : "Search official cards to add…"}
-            className="w-full bg-panel-2 border border-border rounded-full pl-9 pr-4 py-2 text-sm text-ink placeholder:text-muted"
-          />
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-5" onClick={onClose}>
+      <div
+        className="bg-panel border border-border rounded-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <div className="font-semibold">Add a card</div>
+          <button onClick={onClose} className="text-muted shrink-0">
+            <X size={18} />
+          </button>
         </div>
-        <select
-          value={mode}
-          onChange={(e) => onModeChange(e.target.value as SearchMode)}
-          className="bg-panel-2 border border-border rounded-full px-3 py-2 text-xs text-ink"
-        >
-          <option value="add">Add a new card</option>
-          <option value="search">Search within set</option>
-        </select>
-      </div>
-      {mode === "add" && (
-        <p className="text-[11px] text-muted -mt-2 mb-3">
-          Adding a card adds every known printing of it (Normal, Holofoil, etc.) as separate checklist items.
-        </p>
-      )}
-      {mode === "search" && (
-        <p className="text-[11px] text-muted -mt-2 mb-3">Filtering the checklist below as you type.</p>
-      )}
 
-      {searching && (
-        <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
-          {loading ? (
-            <div className="text-muted text-sm text-center py-4">Searching…</div>
-          ) : results.length === 0 ? (
-            <div className="text-muted text-sm text-center py-4">No cards found.</div>
-          ) : (
-            results.map((c) => {
-              const already = existingCardIds.includes(c.id) || justAdded.has(c.id);
-              return (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-3 bg-panel-2 border border-border rounded-lg px-3 py-2"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c.imageUrl} alt={c.name} className="w-8 h-11 object-cover rounded" />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{c.name}</div>
-                    <div className="text-xs text-muted truncate">
-                      {c.setName} · #{c.number}
+        <div className="p-4">
+          <div className="relative mb-2">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search official cards to add…"
+              className="w-full bg-panel-2 border border-border rounded-full pl-9 pr-4 py-2 text-sm text-ink placeholder:text-muted"
+            />
+          </div>
+          <p className="text-[11px] text-muted mb-3">
+            Adding a card adds every known printing of it (Normal, Holofoil, etc.) as separate checklist items.
+          </p>
+
+          {searching && (
+            <div className="flex flex-col gap-2 max-h-80 overflow-y-auto">
+              {loading ? (
+                <div className="text-muted text-sm text-center py-4">Searching…</div>
+              ) : results.length === 0 ? (
+                <div className="text-muted text-sm text-center py-4">No cards found.</div>
+              ) : (
+                results.map((c) => {
+                  const already = existingCardIds.includes(c.id) || justAdded.has(c.id);
+                  return (
+                    <div
+                      key={c.id}
+                      className="flex items-center gap-3 bg-panel-2 border border-border rounded-lg px-3 py-2"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={c.imageUrl} alt={c.name} className="w-8 h-11 object-cover rounded" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium truncate">{c.name}</div>
+                        <div className="text-xs text-muted truncate">
+                          {c.setName} · #{c.number}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleAdd(c)}
+                        disabled={already || pending}
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full disabled:opacity-60"
+                        style={{
+                          background: already ? "transparent" : "var(--teal)",
+                          color: already ? "var(--good)" : "#0b0c14",
+                        }}
+                      >
+                        {already ? (
+                          <>
+                            <Check size={13} /> Added
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={13} /> Add
+                          </>
+                        )}
+                      </button>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => handleAdd(c)}
-                    disabled={already || pending}
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-full disabled:opacity-60"
-                    style={{
-                      background: already ? "transparent" : "var(--teal)",
-                      color: already ? "var(--good)" : "#0b0c14",
-                    }}
-                  >
-                    {already ? (
-                      <>
-                        <Check size={13} /> Added
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={13} /> Add
-                      </>
-                    )}
-                  </button>
-                </div>
-              );
-            })
+                  );
+                })
+              )}
+            </div>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
