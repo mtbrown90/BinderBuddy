@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { ChevronLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { listSets } from "@/lib/pokemontcg";
 import { getMasterSetLimitInfo } from "@/lib/masterSetLimit";
 import SubscriptionPanel from "@/components/SubscriptionPanel";
+import type { MasterSet } from "@/types";
 import NewMasterSetForm from "./NewMasterSetForm";
 import PurchaseMasterSetForm from "./PurchaseMasterSetForm";
 
@@ -16,9 +18,14 @@ export default async function NewMasterSetPage({
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const limit = user
-    ? await getMasterSetLimitInfo(supabase, user.id)
-    : { ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false };
+
+  const [limit, { data: masterSets }, officialSets] = await Promise.all([
+    user
+      ? getMasterSetLimitInfo(supabase, user.id)
+      : Promise.resolve({ ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false }),
+    supabase.from("master_sets").select("*").order("name", { ascending: true }).returns<MasterSet[]>(),
+    listSets().catch(() => []),
+  ]);
 
   return (
     <div>
@@ -55,7 +62,10 @@ export default async function NewMasterSetPage({
 
         <div className="bg-panel border border-border rounded-2xl p-5">
           <h2 className="font-semibold text-sm mb-3">2. Purchase — buy as many as you want</h2>
-          <PurchaseMasterSetForm />
+          <PurchaseMasterSetForm
+            masterSets={masterSets ?? []}
+            officialSets={officialSets.map((s) => ({ id: s.id, name: s.name }))}
+          />
         </div>
 
         <div className="bg-panel border border-teal/40 rounded-2xl p-5">

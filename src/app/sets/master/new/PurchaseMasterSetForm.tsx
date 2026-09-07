@@ -4,19 +4,30 @@ import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { POKEMON_TYPES, TYPE_COLORS, type PokemonType } from "@/lib/pokemontcg";
 import { autoPopulatePriceCents, BULK_AUTOPOPULATE_PRICE_CENTS } from "@/lib/pricing";
+import type { MasterSet } from "@/types";
 import { createMasterSetForPurchase } from "@/app/store/actions";
+import PlaceholderPdfForm from "@/app/store/PlaceholderPdfForm";
 
 // Light backgrounds need dark chip text for contrast; the rest read fine
 // in white. Duplicated from TypeAutoPopulateForm — small enough that a
 // shared constant isn't worth the import indirection.
 const DARK_TEXT_TYPES = new Set<PokemonType>(["Colorless", "Fairy", "Lightning"]);
 
-type Mode = "name" | "type" | "artist";
+type Mode = "name" | "type" | "artist" | "pdf";
 
 // A new master set, paid for and pre-filled in one step via the same
 // auto-populate purchase already used in Store — "buy as many as you
 // want" has no cap of its own, unlike the one free simple-create set.
-export default function PurchaseMasterSetForm() {
+// "pdf" mode is the odd one out: it reuses Store's PlaceholderPdfForm
+// as-is (own master-set-or-official-set targeting, own submit) rather
+// than always creating a brand new master set like the other three do.
+export default function PurchaseMasterSetForm({
+  masterSets,
+  officialSets,
+}: {
+  masterSets: MasterSet[];
+  officialSets: { id: string; name: string }[];
+}) {
   const [mode, setMode] = useState<Mode>("name");
   const [newMasterSetName, setNewMasterSetName] = useState("");
   const [names, setNames] = useState("");
@@ -89,17 +100,7 @@ export default function PurchaseMasterSetForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1.5 text-xs text-muted">
-        New master set name
-        <input
-          value={newMasterSetName}
-          onChange={(e) => setNewMasterSetName(e.target.value)}
-          placeholder="e.g. Piplup Masterset"
-          className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
-        />
-      </label>
-
+    <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1.5 text-xs text-muted">
         Fill it by
         <select
@@ -110,86 +111,103 @@ export default function PurchaseMasterSetForm() {
           <option value="name">Pokémon name(s)</option>
           <option value="type">Energy type</option>
           <option value="artist">Artist</option>
+          <option value="pdf">Placeholder PDF</option>
         </select>
       </label>
 
-      {mode === "name" && (
-        <>
+      {mode === "pdf" ? (
+        <PlaceholderPdfForm masterSets={masterSets} officialSets={officialSets} />
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <label className="flex flex-col gap-1.5 text-xs text-muted">
-            Pokémon name(s)
+            New master set name
             <input
-              value={names}
-              onChange={(e) => setNames(e.target.value)}
-              placeholder="e.g. Piplup, or Piplup, Prinplup, Empoleon"
+              value={newMasterSetName}
+              onChange={(e) => setNewMasterSetName(e.target.value)}
+              placeholder="e.g. Piplup Masterset"
               className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
             />
           </label>
-          <p className="text-[11px] text-muted -mt-1">
-            Separate multiple names with commas — the more you add per purchase, the cheaper it is per
-            Pokémon. 1 name: $2.99 · 2: $4.99 · 3: $5.99 · each one after that: +$1.00.
-          </p>
-        </>
-      )}
 
-      {mode === "type" && (
-        <>
-          <div className="flex flex-col gap-1.5 text-xs text-muted">
-            Energy type
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
-              {POKEMON_TYPES.map((t) => {
-                const selected = t === type;
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    title={t}
-                    className="flex items-center justify-center rounded-lg px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide"
-                    style={{
-                      background: TYPE_COLORS[t],
-                      color: DARK_TEXT_TYPES.has(t) ? "#0b0c14" : "#fff",
-                      outline: selected ? "2px solid var(--ink)" : "2px solid transparent",
-                      outlineOffset: 1,
-                    }}
-                  >
-                    {t}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-[11px] text-muted -mt-1">
-            Adds every official {type}-type card ever printed — typically hundreds to a couple thousand
-            cards, across every set.
-          </p>
-        </>
-      )}
+          {mode === "name" && (
+            <>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Pokémon name(s)
+                <input
+                  value={names}
+                  onChange={(e) => setNames(e.target.value)}
+                  placeholder="e.g. Piplup, or Piplup, Prinplup, Empoleon"
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <p className="text-[11px] text-muted -mt-1">
+                Separate multiple names with commas — the more you add per purchase, the cheaper it is
+                per Pokémon. 1 name: $2.99 · 2: $4.99 · 3: $5.99 · each one after that: +$1.00.
+              </p>
+            </>
+          )}
 
-      {mode === "artist" && (
-        <>
-          <label className="flex flex-col gap-1.5 text-xs text-muted">
-            Artist name
-            <input
-              value={artist}
-              onChange={(e) => setArtist(e.target.value)}
-              placeholder="e.g. Mitsuhiro Arita"
-              className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
-            />
-          </label>
-          <p className="text-[11px] text-muted -mt-1">
-            Adds every official card illustrated by this artist, exactly as credited on the card.
-          </p>
-        </>
-      )}
+          {mode === "type" && (
+            <>
+              <div className="flex flex-col gap-1.5 text-xs text-muted">
+                Energy type
+                <div className="grid grid-cols-4 sm:grid-cols-6 gap-1.5">
+                  {POKEMON_TYPES.map((t) => {
+                    const selected = t === type;
+                    return (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setType(t)}
+                        title={t}
+                        className="flex items-center justify-center rounded-lg px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wide"
+                        style={{
+                          background: TYPE_COLORS[t],
+                          color: DARK_TEXT_TYPES.has(t) ? "#0b0c14" : "#fff",
+                          outline: selected ? "2px solid var(--ink)" : "2px solid transparent",
+                          outlineOffset: 1,
+                        }}
+                      >
+                        {t}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-[11px] text-muted -mt-1">
+                Adds every official {type}-type card ever printed — typically hundreds to a couple
+                thousand cards, across every set.
+              </p>
+            </>
+          )}
 
-      {error && <p className="text-bad text-sm">{error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="flex items-center justify-center gap-1.5 brand-gradient text-[#0b0c14] font-bold rounded-lg py-2.5 disabled:opacity-60"
-      >
-        <Sparkles size={15} /> {pending ? "Starting checkout…" : `Pay $${price} & create it`}
-      </button>
-    </form>
+          {mode === "artist" && (
+            <>
+              <label className="flex flex-col gap-1.5 text-xs text-muted">
+                Artist name
+                <input
+                  value={artist}
+                  onChange={(e) => setArtist(e.target.value)}
+                  placeholder="e.g. Mitsuhiro Arita"
+                  className="bg-panel-2 border border-border rounded-lg px-3 py-2 text-ink text-sm"
+                />
+              </label>
+              <p className="text-[11px] text-muted -mt-1">
+                Adds every official card illustrated by this artist, exactly as credited on the card.
+              </p>
+            </>
+          )}
+
+          {error && <p className="text-bad text-sm">{error}</p>}
+          <button
+            type="submit"
+            disabled={pending}
+            className="flex items-center justify-center gap-1.5 brand-gradient text-[#0b0c14] font-bold rounded-lg py-2.5 disabled:opacity-60"
+          >
+            <Sparkles size={15} /> {pending ? "Starting checkout…" : `Pay $${price} & create it`}
+          </button>
+        </form>
+      )}
+    </div>
   );
 }
