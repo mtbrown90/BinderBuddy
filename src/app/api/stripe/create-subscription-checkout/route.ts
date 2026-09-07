@@ -11,6 +11,12 @@ import { getStripe } from "@/lib/stripe";
 // ongoing account state, not a one-shot purchase row like the others).
 const PRICES: Record<"month" | "year", number> = { month: 499, year: 4999 };
 
+// Beta free-trial period ends on a fixed calendar date rather than N days
+// from signup — everyone admin-flagged as beta_trial_eligible (see
+// src/app/admin/actions.ts) bills for the first time on the same date,
+// no matter when during the beta they actually subscribed.
+const BETA_TRIAL_END = new Date("2027-01-01T00:00:00Z");
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
   const {
@@ -25,6 +31,20 @@ export async function POST(req: NextRequest) {
   if (!interval) {
     return NextResponse.json({ error: "interval must be 'month' or 'year'" }, { status: 400 });
   }
+
+  // profiles' column-level grant excludes beta_trial_eligible — go through
+  // the security-definer RPC (see get_own_subscription_info() in
+  // schema.sql), same reasoning as getMasterSetLimitInfo.
+  const { data: profileRows } = await supabase.rpc("get_own_subscription_info");
+  const profile = profileRows?.[0];
+
+  // Stripe rejects a trial_end that isn't in the future — once the beta
+  // cutoff itself has passed, a still-flagged account just subscribes at
+  // full price immediately rather than erroring out.
+  const trialEndSeconds =
+    profile?.beta_trial_eligible && BETA_TRIAL_END.getTime() > Date.now()
+      ? Math.floor(BETA_TRIAL_END.getTime() / 1000)
+      : null;
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
 
@@ -43,6 +63,7 @@ export async function POST(req: NextRequest) {
           quantity: 1,
         },
       ],
+      ...(trialEndSeconds ? { subscription_data: { trial_end: trialEndSeconds } } : {}),
       client_reference_id: user.id,
       success_url: `${appUrl}/sets/master/new?checkout=success`,
       cancel_url: `${appUrl}/sets/master/new?checkout=cancelled`,

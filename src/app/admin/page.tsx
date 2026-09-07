@@ -11,7 +11,7 @@ export default async function AdminPage() {
 
   const [{ data: authData, error: authError }, { data: profileRows, error: profileError }] = await Promise.all([
     admin.auth.admin.listUsers(),
-    admin.from("profiles").select("id, username, is_admin, is_restricted, created_at"),
+    admin.from("profiles").select("id, username, is_admin, is_restricted, beta_trial_eligible, created_at"),
   ]);
 
   if (authError || profileError) {
@@ -34,6 +34,7 @@ export default async function AdminPage() {
       is_admin: profile?.is_admin ?? false,
       is_restricted: profile?.is_restricted ?? false,
       banned: Boolean(u.banned_until),
+      beta_trial_eligible: profile?.beta_trial_eligible ?? false,
     };
   });
 

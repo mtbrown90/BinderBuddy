@@ -14,11 +14,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("stripe_customer_id")
-    .eq("id", user.id)
-    .single();
+  // profiles' column-level grant excludes stripe_customer_id — go through
+  // the security-definer RPC (see get_own_subscription_info() in
+  // schema.sql), same reasoning as getMasterSetLimitInfo.
+  const { data: profileRows } = await supabase.rpc("get_own_subscription_info");
+  const profile = profileRows?.[0];
 
   if (!profile?.stripe_customer_id) {
     return NextResponse.json({ error: "No subscription on file" }, { status: 400 });

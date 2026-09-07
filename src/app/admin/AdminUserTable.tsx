@@ -1,17 +1,18 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Search, ShieldCheck, ShieldOff, Ban, Undo2 } from "lucide-react";
+import { Search, ShieldCheck, ShieldOff, Ban, Undo2, Sparkles } from "lucide-react";
 import type { AdminUserRow } from "@/types";
-import { toggleRestricted, toggleBan } from "./actions";
+import { toggleRestricted, toggleBan, toggleBetaTrialEligible } from "./actions";
 
-type BadgeTone = "admin" | "restricted" | "banned";
+type BadgeTone = "admin" | "restricted" | "banned" | "beta";
 
 function Badge({ label, tone }: { label: string; tone: BadgeTone }) {
   const styles: Record<BadgeTone, string> = {
     admin: "bg-panel-2 text-teal border-teal/40",
     restricted: "bg-panel-2 text-amber border-amber/40",
     banned: "bg-panel-2 text-bad border-bad/40",
+    beta: "bg-panel-2 text-teal border-teal/40",
   };
   return (
     <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${styles[tone]}`}>
@@ -48,6 +49,17 @@ function UserRow({ user }: { user: AdminUserRow }) {
     });
   }
 
+  function handleToggleBetaTrial() {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await toggleBetaTrialEligible(user.id, !user.beta_trial_eligible);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Something went wrong.");
+      }
+    });
+  }
+
   return (
     <div className="bg-panel border border-border rounded-xl p-3">
       <div className="flex items-start justify-between gap-3">
@@ -57,6 +69,7 @@ function UserRow({ user }: { user: AdminUserRow }) {
             {user.is_admin && <Badge label="Admin" tone="admin" />}
             {user.is_restricted && <Badge label="Restricted" tone="restricted" />}
             {user.banned && <Badge label="Banned" tone="banned" />}
+            {user.beta_trial_eligible && <Badge label="Beta trial" tone="beta" />}
           </div>
           <div className="text-xs text-muted truncate">{user.email ?? "—"}</div>
           <div className="text-[11px] text-muted mt-0.5">
@@ -68,6 +81,14 @@ function UserRow({ user }: { user: AdminUserRow }) {
       {error && <p className="text-xs text-bad mt-2">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-border">
+        <button
+          onClick={handleToggleBetaTrial}
+          disabled={pending}
+          className="flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-ink disabled:opacity-60"
+        >
+          <Sparkles size={13} /> {user.beta_trial_eligible ? "Revoke beta trial" : "Grant beta trial"}
+        </button>
+
         <button
           onClick={handleToggleRestricted}
           disabled={pending}

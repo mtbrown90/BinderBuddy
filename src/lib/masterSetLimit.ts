@@ -24,10 +24,17 @@ export async function getMasterSetLimitInfo(
   supabase: SupabaseClient<any, any, any>,
   userId: string
 ): Promise<MasterSetLimitInfo> {
-  const [{ count: ownedCount }, { data: profile }] = await Promise.all([
+  // profiles' column-level grant deliberately excludes subscription/billing
+  // columns (see get_own_subscription_info() in schema.sql) — a plain
+  // .select() for them fails silently for the caller's own client, so this
+  // goes through the security-definer RPC instead. It always reflects the
+  // signed-in session (auth.uid()), which matches every caller of this
+  // function passing their own id anyway.
+  const [{ count: ownedCount }, { data: profileRows }] = await Promise.all([
     supabase.from("master_sets").select("id", { count: "exact", head: true }).eq("user_id", userId),
-    supabase.from("profiles").select("subscription_status, stripe_customer_id").eq("id", userId).single(),
+    supabase.rpc("get_own_subscription_info"),
   ]);
+  const profile = profileRows?.[0];
 
   const unlimited = UNLIMITED_STATUSES.has(profile?.subscription_status ?? "");
   const owned = ownedCount ?? 0;

@@ -31,7 +31,12 @@ create table profiles (
     stripe_subscription_id text,
     subscription_status    text,
     subscription_interval  text check (subscription_interval is null or subscription_interval in ('month', 'year')),
-    subscription_current_period_end timestamptz
+    subscription_current_period_end timestamptz,
+
+    -- Admin-only: marks an account eligible for the beta free-trial period
+    -- on the unlimited-master-sets subscription (trial runs until a fixed
+    -- date, not a rolling duration — see create-subscription-checkout).
+    beta_trial_eligible boolean not null default false
 );
 
 alter table profiles add constraint profiles_username_format
@@ -61,6 +66,25 @@ create function is_current_user_restricted() returns boolean as $$
 $$ language sql security definer set search_path = public stable;
 
 grant execute on function is_current_user_restricted() to authenticated;
+
+-- Same security-definer reasoning, for the subscription/billing columns:
+-- the "read public profile fields" policy below lets any signed-in user
+-- read any other user's row (for Community username lookups), so those
+-- columns can never be added to the general grant above without leaking
+-- every user's subscription status and Stripe customer id to everyone
+-- else. This returns only the calling user's own values.
+create function get_own_subscription_info()
+returns table (
+  subscription_status text,
+  stripe_customer_id text,
+  beta_trial_eligible boolean
+) as $$
+  select subscription_status, stripe_customer_id, beta_trial_eligible
+  from profiles
+  where id = auth.uid();
+$$ language sql security definer set search_path = public stable;
+
+grant execute on function get_own_subscription_info() to authenticated;
 
 create function handle_new_user()
 returns trigger as $$
