@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getMasterSetLimitInfo } from "@/lib/masterSetLimit";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import NewMasterSetForm from "./NewMasterSetForm";
-import MasterSetPaywall from "./MasterSetPaywall";
+import PurchaseMasterSetForm from "./PurchaseMasterSetForm";
 
 export default async function NewMasterSetPage({
   searchParams,
@@ -17,14 +18,7 @@ export default async function NewMasterSetPage({
   } = await supabase.auth.getUser();
   const limit = user
     ? await getMasterSetLimitInfo(supabase, user.id)
-    : {
-        ownedCount: 0,
-        allowedSlots: 1,
-        unlimited: false,
-        canCreateMore: false,
-        nextSlotPriceCents: 299,
-        hasBillingHistory: false,
-      };
+    : { ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false };
 
   return (
     <div>
@@ -47,15 +41,30 @@ export default async function NewMasterSetPage({
         </div>
       )}
 
-      {limit.canCreateMore ? (
-        <NewMasterSetForm />
-      ) : (
-        <MasterSetPaywall
-          ownedCount={limit.ownedCount}
-          allowedSlots={limit.allowedSlots}
-          nextSlotPriceCents={limit.nextSlotPriceCents}
-        />
-      )}
+      <div className="flex flex-col gap-5">
+        <div className="bg-panel border border-border rounded-2xl p-5">
+          <h2 className="font-semibold text-sm mb-3">1. Start free</h2>
+          {limit.canCreateFree ? (
+            <NewMasterSetForm />
+          ) : (
+            <p className="text-sm text-muted">
+              You&apos;ve already used your one free master set ({limit.ownedCount} owned).
+            </p>
+          )}
+        </div>
+
+        <div className="bg-panel border border-border rounded-2xl p-5">
+          <h2 className="font-semibold text-sm mb-3">2. Purchase — buy as many as you want</h2>
+          <PurchaseMasterSetForm />
+        </div>
+
+        <div className="bg-panel border border-teal/40 rounded-2xl p-5">
+          <h2 className="flex items-center gap-1.5 font-semibold text-sm mb-3">
+            <Sparkles size={14} className="text-teal" /> 3. Subscribe for unlimited
+          </h2>
+          <SubscriptionPanel unlimited={limit.unlimited} hasBillingHistory={limit.hasBillingHistory} />
+        </div>
+      </div>
     </div>
   );
 }

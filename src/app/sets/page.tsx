@@ -25,14 +25,7 @@ export default async function SetsPage() {
     isCurrentUserAdmin(),
     user
       ? getMasterSetLimitInfo(supabase, user.id)
-      : Promise.resolve({
-          ownedCount: 0,
-          allowedSlots: 1,
-          unlimited: false,
-          canCreateMore: false,
-          nextSlotPriceCents: 299,
-          hasBillingHistory: false,
-        }),
+      : Promise.resolve({ ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false }),
   ]);
 
   // Distinct card numbers owned per official set — a card owned in two

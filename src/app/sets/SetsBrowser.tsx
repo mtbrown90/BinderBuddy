@@ -220,7 +220,7 @@ export default function SetsBrowser({
         <p className="text-xs text-muted mb-3">
           {masterSetLimit.unlimited
             ? "Unlimited master sets"
-            : `${masterSetLimit.ownedCount}/${masterSetLimit.allowedSlots} master sets used`}
+            : `${masterSetLimit.ownedCount} master set${masterSetLimit.ownedCount === 1 ? "" : "s"} — 1 free, buy more or subscribe for unlimited`}
         </p>
         {masterSets.length > 1 && (
           <select

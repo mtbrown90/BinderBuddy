@@ -117,24 +117,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ received: true });
   }
 
-  const slotPurchaseId = session.metadata?.slotPurchaseId;
-  if (slotPurchaseId) {
-    await admin
-      .from("masterset_slot_purchases")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-        stripe_payment_intent_id:
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : (session.payment_intent?.id ?? null),
-      })
-      .eq("id", slotPurchaseId)
-      .neq("status", "completed");
-
-    return NextResponse.json({ received: true });
-  }
-
   const pdfPurchaseId = session.metadata?.pdfPurchaseId;
   if (pdfPurchaseId) {
     // No card upserting for this product — the PDF is generated on demand

@@ -1,13 +1,13 @@
-import { Store as StoreIcon } from "lucide-react";
+import { Store as StoreIcon, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listSets } from "@/lib/pokemontcg";
 import { getMasterSetLimitInfo } from "@/lib/masterSetLimit";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import type { MasterSet } from "@/types";
 import PokemonAutoPopulateForm from "./PokemonAutoPopulateForm";
 import TypeAutoPopulateForm from "./TypeAutoPopulateForm";
 import ArtistAutoPopulateForm from "./ArtistAutoPopulateForm";
 import PlaceholderPdfForm from "./PlaceholderPdfForm";
-import MasterSetSlotsPanel from "./MasterSetSlotsPanel";
 
 export default async function StorePage() {
   const supabase = await createClient();
@@ -20,14 +20,7 @@ export default async function StorePage() {
     listSets().catch(() => []),
     user
       ? getMasterSetLimitInfo(supabase, user.id)
-      : Promise.resolve({
-          ownedCount: 0,
-          allowedSlots: 1,
-          unlimited: false,
-          canCreateMore: false,
-          nextSlotPriceCents: 299,
-          hasBillingHistory: false,
-        }),
+      : Promise.resolve({ ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false }),
   ]);
 
   const sets = masterSets ?? [];
@@ -42,15 +35,15 @@ export default async function StorePage() {
       </p>
 
       <div className="flex flex-col gap-5">
-        <div className="bg-panel border border-border rounded-2xl p-4">
-          <h2 className="font-semibold text-sm mb-3">Master set slots</h2>
-          <MasterSetSlotsPanel
-            ownedCount={masterSetLimit.ownedCount}
-            allowedSlots={masterSetLimit.allowedSlots}
-            unlimited={masterSetLimit.unlimited}
-            nextSlotPriceCents={masterSetLimit.nextSlotPriceCents}
-            hasBillingHistory={masterSetLimit.hasBillingHistory}
-          />
+        <div className="bg-panel border border-teal/40 rounded-2xl p-4">
+          <h2 className="flex items-center gap-1.5 font-semibold text-sm mb-3">
+            <Sparkles size={14} className="text-teal" /> Unlimited master sets
+          </h2>
+          <p className="text-xs text-muted mb-3">
+            1 master set is free ({masterSetLimit.ownedCount} owned so far) — beyond that, either buy new ones
+            below (auto-populated, no cap) or subscribe here so every new one is free too.
+          </p>
+          <SubscriptionPanel unlimited={masterSetLimit.unlimited} hasBillingHistory={masterSetLimit.hasBillingHistory} />
         </div>
 
         <div className="bg-panel border border-border rounded-2xl p-4">
