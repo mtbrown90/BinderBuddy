@@ -1,6 +1,7 @@
 import { listSets } from "@/lib/pokemontcg";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
+import { getMasterSetLimitInfo } from "@/lib/masterSetLimit";
 import type { MasterSet } from "@/types";
 import SetsBrowser from "./SetsBrowser";
 
@@ -10,7 +11,7 @@ export default async function SetsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [officialSets, { data: masterSets }, { data: entries }, admin] = await Promise.all([
+  const [officialSets, { data: masterSets }, { data: entries }, admin, masterSetLimit] = await Promise.all([
     listSets().catch(() => []),
     supabase
       .from("master_sets")
@@ -22,6 +23,16 @@ export default async function SetsPage() {
     // filter, those cards would inflate this user's owned counts.
     supabase.from("collection_entries").select("set_name, card_number").eq("user_id", user?.id ?? ""),
     isCurrentUserAdmin(),
+    user
+      ? getMasterSetLimitInfo(supabase, user.id)
+      : Promise.resolve({
+          ownedCount: 0,
+          allowedSlots: 1,
+          unlimited: false,
+          canCreateMore: false,
+          nextSlotPriceCents: 299,
+          hasBillingHistory: false,
+        }),
   ]);
 
   // Distinct card numbers owned per official set — a card owned in two
@@ -49,6 +60,7 @@ export default async function SetsPage() {
       }))}
       masterSets={masterSets ?? []}
       ownedCountsBySet={ownedCountsBySet}
+      masterSetLimit={masterSetLimit}
       isAdmin={admin}
     />
   );

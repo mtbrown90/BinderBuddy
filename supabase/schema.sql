@@ -21,7 +21,17 @@ create table profiles (
     -- via the column grant below, so other users can't see who's
     -- restricted (see is_current_user_restricted()).
     is_restricted boolean not null default false,
-    created_at   timestamptz not null default now()
+    created_at   timestamptz not null default now(),
+
+    -- Subscription state for the "unlimited master sets" plan — set only
+    -- by the Stripe webhook (service role), never by the user directly.
+    -- subscription_status mirrors Stripe's own status string
+    -- (active/trialing/past_due/canceled/...); null = never subscribed.
+    stripe_customer_id     text,
+    stripe_subscription_id text,
+    subscription_status    text,
+    subscription_interval  text check (subscription_interval is null or subscription_interval in ('month', 'year')),
+    subscription_current_period_end timestamptz
 );
 
 alter table profiles add constraint profiles_username_format
@@ -227,6 +237,25 @@ create table masterset_purchases (
 create index idx_masterset_purchases_user on masterset_purchases(user_id);
 create index idx_masterset_purchases_set on masterset_purchases(master_set_id);
 create index idx_masterset_purchases_session on masterset_purchases(stripe_checkout_session_id);
+
+-- ---------- Master set slot purchases ----------
+-- One row per one-time "buy an extra master-set slot" purchase — the free
+-- tier is 1 master set, each completed row here grants one more. Same
+-- pending/completed pattern as masterset_purchases above.
+create table masterset_slot_purchases (
+    id                          uuid primary key default gen_random_uuid(),
+    user_id                     uuid not null references auth.users(id) on delete cascade,
+    stripe_checkout_session_id  text,
+    stripe_payment_intent_id    text,
+    amount_cents                integer not null,
+    currency                    text not null default 'usd',
+    status                      text not null default 'pending'
+                                   check (status in ('pending', 'completed', 'failed', 'refunded')),
+    created_at                  timestamptz not null default now(),
+    completed_at                timestamptz
+);
+
+create index idx_masterset_slot_purchases_user on masterset_slot_purchases(user_id);
 
 -- ---------- Masterset placeholder PDF purchases ----------
 -- Buyable printable placeholder cards for whatever's missing from a
@@ -467,6 +496,7 @@ alter table master_set_cards enable row level security;
 alter table master_set_queries enable row level security;
 alter table collection_entries enable row level security;
 alter table masterset_purchases enable row level security;
+alter table masterset_slot_purchases enable row level security;
 alter table masterset_pdf_purchases enable row level security;
 alter table discussion_categories enable row level security;
 alter table discussion_threads enable row level security;
@@ -516,6 +546,11 @@ create policy "read cards marked for trade" on collection_entries
 create policy "read own purchases" on masterset_purchases
   for select using (auth.uid() = user_id);
 create policy "create own purchases" on masterset_purchases
+  for insert with check (auth.uid() = user_id);
+
+create policy "read own slot purchases" on masterset_slot_purchases
+  for select using (auth.uid() = user_id);
+create policy "create own slot purchases" on masterset_slot_purchases
   for insert with check (auth.uid() = user_id);
 
 create policy "read own pdf purchases" on masterset_pdf_purchases
