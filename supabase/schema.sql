@@ -21,7 +21,17 @@ create table profiles (
     -- via the column grant below, so other users can't see who's
     -- restricted (see is_current_user_restricted()).
     is_restricted boolean not null default false,
-    created_at   timestamptz not null default now()
+    created_at   timestamptz not null default now(),
+
+    -- Subscription state for the "unlimited master sets" plan — set only
+    -- by the Stripe webhook (service role), never by the user directly.
+    -- subscription_status mirrors Stripe's own status string
+    -- (active/trialing/past_due/canceled/...); null = never subscribed.
+    stripe_customer_id     text,
+    stripe_subscription_id text,
+    subscription_status    text,
+    subscription_interval  text check (subscription_interval is null or subscription_interval in ('month', 'year')),
+    subscription_current_period_end timestamptz
 );
 
 alter table profiles add constraint profiles_username_format

@@ -69,12 +69,53 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
-  if (event.type !== "checkout.session.completed") {
+  const RELEVANT_EVENTS = new Set([
+    "checkout.session.completed",
+    "customer.subscription.updated",
+    "customer.subscription.deleted",
+  ]);
+  if (!RELEVANT_EVENTS.has(event.type)) {
+    return NextResponse.json({ received: true });
+  }
+
+  const admin = createAdminClient();
+
+  if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+    await admin
+      .from("profiles")
+      .update({
+        subscription_status: event.type === "customer.subscription.deleted" ? "canceled" : subscription.status,
+        subscription_interval: subscription.items.data[0]?.price.recurring?.interval ?? null,
+        subscription_current_period_end: new Date(subscription.items.data[0].current_period_end * 1000).toISOString(),
+      })
+      .eq("stripe_subscription_id", subscription.id);
+
     return NextResponse.json({ received: true });
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
-  const admin = createAdminClient();
+
+  if (session.mode === "subscription") {
+    const userId = session.client_reference_id;
+    if (!userId || !session.subscription) return NextResponse.json({ received: true });
+
+    const subscription = await getStripe().subscriptions.retrieve(session.subscription as string);
+    await admin
+      .from("profiles")
+      .update({
+        stripe_customer_id: typeof session.customer === "string" ? session.customer : (session.customer?.id ?? null),
+        stripe_subscription_id: subscription.id,
+        subscription_status: subscription.status,
+        subscription_interval: subscription.items.data[0]?.price.recurring?.interval ?? null,
+        subscription_current_period_end: new Date(
+          subscription.items.data[0].current_period_end * 1000
+        ).toISOString(),
+      })
+      .eq("id", userId);
+
+    return NextResponse.json({ received: true });
+  }
 
   const pdfPurchaseId = session.metadata?.pdfPurchaseId;
   if (pdfPurchaseId) {

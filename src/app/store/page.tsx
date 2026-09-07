@@ -1,6 +1,8 @@
-import { Store as StoreIcon } from "lucide-react";
+import { Store as StoreIcon, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { listSets } from "@/lib/pokemontcg";
+import { getMasterSetLimitInfo } from "@/lib/masterSetLimit";
+import SubscriptionPanel from "@/components/SubscriptionPanel";
 import type { MasterSet } from "@/types";
 import PokemonAutoPopulateForm from "./PokemonAutoPopulateForm";
 import TypeAutoPopulateForm from "./TypeAutoPopulateForm";
@@ -9,9 +11,16 @@ import PlaceholderPdfForm from "./PlaceholderPdfForm";
 
 export default async function StorePage() {
   const supabase = await createClient();
-  const [{ data: masterSets }, officialSets] = await Promise.all([
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const [{ data: masterSets }, officialSets, masterSetLimit] = await Promise.all([
     supabase.from("master_sets").select("*").order("name", { ascending: true }).returns<MasterSet[]>(),
     listSets().catch(() => []),
+    user
+      ? getMasterSetLimitInfo(supabase, user.id)
+      : Promise.resolve({ ownedCount: 0, unlimited: false, canCreateFree: false, hasBillingHistory: false }),
   ]);
 
   const sets = masterSets ?? [];
@@ -26,6 +35,17 @@ export default async function StorePage() {
       </p>
 
       <div className="flex flex-col gap-5">
+        <div className="bg-panel border border-teal/40 rounded-2xl p-4">
+          <h2 className="flex items-center gap-1.5 font-semibold text-sm mb-3">
+            <Sparkles size={14} className="text-teal" /> Unlimited master sets
+          </h2>
+          <p className="text-xs text-muted mb-3">
+            1 master set is free ({masterSetLimit.ownedCount} owned so far) — beyond that, either buy new ones
+            below (auto-populated, no cap) or subscribe here so every new one is free too.
+          </p>
+          <SubscriptionPanel unlimited={masterSetLimit.unlimited} hasBillingHistory={masterSetLimit.hasBillingHistory} />
+        </div>
+
         <div className="bg-panel border border-border rounded-2xl p-4">
           <h2 className="font-semibold text-sm mb-3">Auto-populate by Pokémon</h2>
           <PokemonAutoPopulateForm masterSets={sets} />

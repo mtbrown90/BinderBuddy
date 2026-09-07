@@ -6,6 +6,7 @@ import { FolderPlus, Search, Sparkles, Upload } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSet } from "@/types";
+import type { MasterSetLimitInfo } from "@/lib/masterSetLimit";
 
 type OfficialSet = {
   id: string;
@@ -45,11 +46,13 @@ export default function SetsBrowser({
   officialSets,
   masterSets,
   ownedCountsBySet,
+  masterSetLimit,
   isAdmin,
 }: {
   officialSets: OfficialSet[];
   masterSets: MasterSet[];
   ownedCountsBySet: Record<string, number>;
+  masterSetLimit: MasterSetLimitInfo;
   isAdmin: boolean;
 }) {
   const [query, setQuery] = useState("");
@@ -214,6 +217,11 @@ export default function SetsBrowser({
             <FolderPlus size={14} /> New master set
           </Link>
         </div>
+        <p className="text-xs text-muted mb-3">
+          {masterSetLimit.unlimited
+            ? "Unlimited master sets"
+            : `${masterSetLimit.ownedCount} master set${masterSetLimit.ownedCount === 1 ? "" : "s"} — 1 free, buy more or subscribe for unlimited`}
+        </p>
         {masterSets.length > 1 && (
           <select
             value={masterSort}
