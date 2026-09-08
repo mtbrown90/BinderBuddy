@@ -14,7 +14,7 @@ export function VariationBadge({ label }: { label: string }) {
     <span
       className="inline-block text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
       style={{
-        background: holo ? "linear-gradient(120deg, #00C2A8, #6C5CE7 45%, #C13584)" : "#3A3D4E",
+        background: holo ? "linear-gradient(120deg, #E3350D, #FFFFFF 50%, #E3350D)" : "#3A3D4E",
         color: holo ? "#0B0C14" : "#B7BACB",
       }}
     >
@@ -51,7 +51,7 @@ export default function CardTile({
     <div className={onClick ? "cursor-pointer" : ""} onClick={onClick}>
       <div
         className={`relative aspect-[5/7] bg-panel-2 border border-border rounded-lg overflow-hidden ${
-          holo ? "shadow-[0_0_0_1.5px_var(--teal),0_0_18px_-4px_rgba(193,53,132,0.6)]" : ""
+          holo ? "shadow-[0_0_0_1.5px_var(--teal),0_0_18px_-4px_rgba(255,255,255,0.6)]" : ""
         } ${owned ? "ring-2 ring-good" : owned === false ? "ring-2 ring-bad" : ""}`}
       >
         {imageUrl ? (
