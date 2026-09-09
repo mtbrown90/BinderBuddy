@@ -14,7 +14,7 @@ export function VariationBadge({ label }: { label: string }) {
     <span
       className="inline-block text-[9.5px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded"
       style={{
-        background: holo ? "linear-gradient(120deg, #E3350D, #FFFFFF 50%, #E3350D)" : "#3A3D4E",
+        background: holo ? "linear-gradient(120deg, #407098, #FFFFFF 50%, #E02028)" : "#3A3D4E",
         color: holo ? "#0B0C14" : "#B7BACB",
       }}
     >
