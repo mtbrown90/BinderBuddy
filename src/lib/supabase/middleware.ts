@@ -30,8 +30,12 @@ export async function updateSession(request: NextRequest) {
   const isAuthRoute = ["/login", "/signup"].some((p) =>
     request.nextUrl.pathname.startsWith(p)
   );
+  // "/" doubles as the public landing page (logged out) and the Dashboard
+  // (logged in) — see DashboardPage in src/app/page.tsx — so it's allowed
+  // through unauthenticated same as /login and /signup.
+  const isPublicRoute = isAuthRoute || request.nextUrl.pathname === "/";
 
-  if (!user && !isAuthRoute) {
+  if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

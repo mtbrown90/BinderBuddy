@@ -1,12 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CollectionEntry, MasterSet } from "@/types";
 import DashboardView from "./DashboardView";
+import LandingPage from "./LandingPage";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    return <LandingPage />;
+  }
 
   // RLS also grants read access to any row another user has marked
   // is_for_trade (for the Trading Board) — without this explicit filter,
