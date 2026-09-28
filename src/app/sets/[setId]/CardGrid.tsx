@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
-import { matchesCardQuery } from "@/lib/cardMatch";
+import { matchesCardQuery, compareCardNumbers } from "@/lib/cardMatch";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type GridTile = {
@@ -75,9 +75,9 @@ export default function CardGrid({
           return (sort === "price-desc" ? pb - pa : pa - pb) || a.i - b.i;
         }
         case "number-desc":
-          return b.i - a.i;
-        default: // "number-asc" — cards already arrive in set-number order
-          return a.i - b.i;
+          return -compareCardNumbers(a.c.number, b.c.number) || a.i - b.i;
+        default: // "number-asc"
+          return compareCardNumbers(a.c.number, b.c.number) || a.i - b.i;
       }
     });
     return withIndex.map(({ c }) => c);

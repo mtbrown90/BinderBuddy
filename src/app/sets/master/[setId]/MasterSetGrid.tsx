@@ -6,7 +6,7 @@ import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSetCard } from "@/types";
 import { setIdentityLabel } from "@/lib/collectionGroups";
-import { matchesCardQuery } from "@/lib/cardMatch";
+import { matchesCardQuery, compareCardNumbers } from "@/lib/cardMatch";
 import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
@@ -33,12 +33,7 @@ function sortCards(list: MasterSetCard[], sort: SortOption) {
     switch (sort) {
       case "number-asc":
       case "number-desc": {
-        const na = Number(a.c.card_number);
-        const nb = Number(b.c.card_number);
-        const cmp =
-          !Number.isNaN(na) && !Number.isNaN(nb)
-            ? na - nb
-            : (a.c.card_number ?? "").localeCompare(b.c.card_number ?? "");
+        const cmp = compareCardNumbers(a.c.card_number, b.c.card_number);
         return (sort === "number-desc" ? -cmp : cmp) || a.i - b.i;
       }
       case "price-desc":
