@@ -29,6 +29,7 @@ export default function AddCardModal({
   // simply closing.
   onAdded?: () => void;
 }) {
+  const [imageZoomed, setImageZoomed] = useState(false);
   const [variationKey, setVariationKey] = useState(initialVariationKey ?? card.variations[0]?.key ?? "normal");
   const [condition, setCondition] = useState<string>("Near Mint");
   const [quantity, setQuantity] = useState(1);
@@ -151,7 +152,28 @@ export default function AddCardModal({
             <img
               src={card.imageUrl}
               alt={card.name}
-              className="h-48 rounded-lg object-contain"
+              onClick={() => setImageZoomed(true)}
+              className="h-48 rounded-lg object-contain cursor-zoom-in"
+            />
+          </div>
+        )}
+
+        {imageZoomed && (
+          <div
+            className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-5 cursor-zoom-out"
+            onClick={() => setImageZoomed(false)}
+          >
+            <button
+              onClick={() => setImageZoomed(false)}
+              className="absolute top-4 right-4 text-white"
+            >
+              <X size={24} />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={card.imageUrl}
+              alt={card.name}
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg"
             />
           </div>
         )}
