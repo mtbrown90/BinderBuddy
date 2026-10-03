@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { RefreshCw, X } from "lucide-react";
+import { RefreshCw, Sparkles, X } from "lucide-react";
 import CardTile from "@/components/CardTile";
 import AddCardModal from "@/components/AddCardModal";
 import type { MasterSetCard } from "@/types";
 import { setIdentityLabel } from "@/lib/collectionGroups";
 import { matchesCardQuery, compareCardNumbers } from "@/lib/cardMatch";
-import { refreshMasterSetPrices, removeCardFromMasterSet } from "./actions";
+import { refreshMasterSetPrices, checkForNewCards, removeCardFromMasterSet } from "./actions";
 
 type Variation = { key: string; label: string; marketPrice: number | null };
 type FullCard = {
@@ -76,6 +76,8 @@ export default function MasterSetGrid({
   const [ownedFilter, setOwnedFilter] = useState<OwnedFilter>("all");
   const [refreshPending, startRefresh] = useTransition();
   const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const [checkPending, startCheck] = useTransition();
+  const [checkMessage, setCheckMessage] = useState<string | null>(null);
 
   function handleRefreshPrices() {
     setRefreshMessage(null);
@@ -85,6 +87,20 @@ export default function MasterSetGrid({
         "error" in result
           ? `Couldn't refresh prices: ${result.error}`
           : `Refreshed ${result.updated} price${result.updated === 1 ? "" : "s"}.`
+      );
+    });
+  }
+
+  function handleCheckForNewCards() {
+    setCheckMessage(null);
+    startCheck(async () => {
+      const result = await checkForNewCards(masterSetId);
+      setCheckMessage(
+        "error" in result
+          ? `Couldn't check for new cards: ${result.error}`
+          : result.added === 0
+            ? "No new cards found."
+            : `Added ${result.added} new card${result.added === 1 ? "" : "s"}.`
       );
     });
   }
@@ -201,9 +217,22 @@ export default function MasterSetGrid({
             <RefreshCw size={12} className={refreshPending ? "animate-spin" : ""} />
             {refreshPending ? "Refreshing…" : "Refresh prices"}
           </button>
+          {cards.some((c) => c.added_via === "auto_purchase") && (
+            <button
+              type="button"
+              onClick={handleCheckForNewCards}
+              disabled={checkPending}
+              title="Re-run whatever name/type/artist searches this checklist was bought with, and add anything newly released that matches — free"
+              className="flex items-center gap-1.5 bg-panel-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-ink disabled:opacity-60"
+            >
+              <Sparkles size={12} />
+              {checkPending ? "Checking…" : "Check for new cards"}
+            </button>
+          )}
         </div>
       </div>
       {refreshMessage && <p className="text-xs text-muted mb-2 text-right">{refreshMessage}</p>}
+      {checkMessage && <p className="text-xs text-muted mb-2 text-right">{checkMessage}</p>}
       {owned.length + missing.length === 0 ? (
         <div className="text-muted text-sm text-center py-10 bg-panel border border-border rounded-2xl">
           {ownedFilter === "owned" ? "You don't own any cards from this checklist yet." : "No cards match."}

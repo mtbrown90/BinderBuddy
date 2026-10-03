@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   findAllCardsByName,
   findAllCardsByType,
@@ -5,7 +6,14 @@ import {
   cardVariations,
   type PokemonCard,
 } from "@/lib/pokemontcg";
-import type { AdminClient } from "@/lib/supabase/admin";
+
+// Accepts either the service-role admin client (webhook, admin-free
+// checkout bypass — no user session to scope by) or a regular signed-in
+// user's client (the "check for new cards" refresh, run by the owning
+// user themselves — RLS on master_set_cards/master_set_queries already
+// scopes it to their own sets).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnySupabaseClient = SupabaseClient<any, any, any>;
 
 // Type- and artist-based entries in query_names are stored as "type:Fire" /
 // "artist:Ken Sugimori" so a single text[] column can carry all three
@@ -15,7 +23,23 @@ const ARTIST_PREFIX = "artist:";
 
 const UPSERT_CHUNK_SIZE = 500;
 
-async function upsertCardRows(admin: AdminClient, masterSetId: string, cards: PokemonCard[]) {
+async function fetchCardsForQuery(entry: string): Promise<PokemonCard[]> {
+  try {
+    return entry.startsWith(TYPE_PREFIX)
+      ? await findAllCardsByType(entry.slice(TYPE_PREFIX.length))
+      : entry.startsWith(ARTIST_PREFIX)
+        ? await findAllCardsByArtist(entry.slice(ARTIST_PREFIX.length))
+        : await findAllCardsByName(entry);
+  } catch {
+    return []; // pokemontcg.io hiccup — the rest of the entries still get processed
+  }
+}
+
+// Returns how many rows were actually new — an upsert with ignoreDuplicates
+// only RETURNs the rows it inserted (conflicting ones are silently
+// skipped), so chaining .select() on it doubles as a free "how many were
+// new" count.
+async function upsertCardRows(client: AnySupabaseClient, masterSetId: string, cards: PokemonCard[]): Promise<number> {
   const rows = cards.flatMap((c) =>
     cardVariations(c).map((v) => ({
       master_set_id: masterSetId,
@@ -33,39 +57,62 @@ async function upsertCardRows(admin: AdminClient, masterSetId: string, cards: Po
     }))
   );
 
+  let insertedCount = 0;
   // A type or artist purchase can be thousands of rows — chunk the upsert
   // so it stays well under any request-size limit.
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE);
-    await admin
+    const { data } = await client
       .from("master_set_cards")
-      .upsert(chunk, { onConflict: "master_set_id,external_card_id,variation_type", ignoreDuplicates: true });
+      .upsert(chunk, { onConflict: "master_set_id,external_card_id,variation_type", ignoreDuplicates: true })
+      .select("id");
+    insertedCount += data?.length ?? 0;
   }
+  return insertedCount;
 }
 
 // Shared by the Stripe webhook (after a real payment) and the admin free-
 // access bypass (no payment at all) — both need the exact same "fetch
-// these queries from pokemontcg.io and add the cards" behavior.
-export async function fulfillMastersetPurchase(admin: AdminClient, masterSetId: string, queryNames: string[]) {
+// these queries from pokemontcg.io and add the cards" behavior, and both
+// record what was bought in master_set_queries (read later by
+// refreshMasterSetFromSavedQueries below).
+export async function fulfillMastersetPurchase(
+  client: AnySupabaseClient,
+  masterSetId: string,
+  queryNames: string[]
+) {
   for (const entry of queryNames) {
-    let cards: PokemonCard[];
-    try {
-      cards = entry.startsWith(TYPE_PREFIX)
-        ? await findAllCardsByType(entry.slice(TYPE_PREFIX.length))
-        : entry.startsWith(ARTIST_PREFIX)
-          ? await findAllCardsByArtist(entry.slice(ARTIST_PREFIX.length))
-          : await findAllCardsByName(entry);
-    } catch {
-      continue; // pokemontcg.io hiccup — the rest of the entries still get processed
-    }
-
+    const cards = await fetchCardsForQuery(entry);
     if (cards.length === 0) continue;
 
-    await upsertCardRows(admin, masterSetId, cards);
+    await upsertCardRows(client, masterSetId, cards);
 
-    await admin.from("master_set_queries").insert({
+    await client.from("master_set_queries").insert({
       master_set_id: masterSetId,
       query_name: entry,
     });
   }
+}
+
+// Re-runs every query this master set was ever auto-populated from (e.g.
+// "every card named Piplup") and adds anything that newly matches — for
+// free, no new purchase row, since the user already paid for this query
+// once. Doesn't touch master_set_queries itself (those rows already exist
+// from the original purchase), so repeated checks don't accumulate
+// duplicates there. Returns how many new cards were actually added.
+export async function refreshMasterSetFromSavedQueries(client: AnySupabaseClient, masterSetId: string) {
+  const { data: queryRows } = await client
+    .from("master_set_queries")
+    .select("query_name")
+    .eq("master_set_id", masterSetId);
+
+  const queryNames = [...new Set((queryRows ?? []).map((r) => r.query_name as string))];
+
+  let addedCount = 0;
+  for (const entry of queryNames) {
+    const cards = await fetchCardsForQuery(entry);
+    if (cards.length === 0) continue;
+    addedCount += await upsertCardRows(client, masterSetId, cards);
+  }
+  return addedCount;
 }

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { isCurrentUserAdmin } from "@/lib/admin";
 import { getCard, getCardsByIds, cardVariations } from "@/lib/pokemontcg";
+import { refreshMasterSetFromSavedQueries } from "@/lib/fulfillMastersetPurchase";
 import type { MasterSetCard } from "@/types";
 
 // Adds every known printing (variation) of the given card to the master
@@ -149,6 +150,25 @@ export async function refreshMasterSetPrices(
 
   revalidatePath(`/sets/master/${masterSetId}`);
   return { updated: updates.length };
+}
+
+// Re-runs whatever name/type/artist queries this set was ever auto-
+// populated from (if any — a set built only by free-form search or manual
+// adds has none) and adds anything newly matching, free — no new Store
+// purchase. The user-scoped client is enough here: RLS on
+// master_set_queries/master_set_cards already confines it to sets they own.
+export async function checkForNewCards(masterSetId: string): Promise<{ added: number } | { error: string }> {
+  const supabase = await createClient();
+
+  let added: number;
+  try {
+    added = await refreshMasterSetFromSavedQueries(supabase, masterSetId);
+  } catch {
+    return { error: "Couldn't reach the Pokémon TCG API right now — try again in a moment." };
+  }
+
+  if (added > 0) revalidatePath(`/sets/master/${masterSetId}`);
+  return { added };
 }
 
 export async function removeCardFromMasterSet(masterSetCardId: string, masterSetId: string) {
