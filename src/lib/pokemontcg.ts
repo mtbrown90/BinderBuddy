@@ -73,9 +73,18 @@ export async function getSet(id: string): Promise<PokemonSet> {
 }
 
 export async function listCardsInSet(setId: string): Promise<PokemonCard[]> {
-  return get<PokemonCard[]>(
-    `/cards?q=set.id:${encodeURIComponent(setId)}&orderBy=number&pageSize=250`
-  );
+  const pageSize = 250;
+  const q = `set.id:${encodeURIComponent(setId)}`;
+  const all: PokemonCard[] = [];
+
+  for (let page = 1; page <= 20; page++) {
+    const json = await getRaw(`/cards?q=${q}&orderBy=number&pageSize=${pageSize}&page=${page}`);
+    const batch = json.data as PokemonCard[];
+    all.push(...batch);
+    if (batch.length < pageSize || all.length >= json.totalCount) break;
+  }
+
+  return all;
 }
 
 export async function getCard(id: string): Promise<PokemonCard> {

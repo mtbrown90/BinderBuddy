@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generatePlaceholderPdf, type PlaceholderCard, type PlaceholderStyle } from "@/lib/placeholderPdf";
 import { listCardsInSet, cardVariations } from "@/lib/pokemontcg";
+import { compareCardNumbers } from "@/lib/cardMatch";
 import type { MasterSetCard } from "@/types";
 
 // Regenerates the PDF fresh from current data on every download, rather
@@ -77,7 +78,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ purc
       (entries ?? []).map((e) => `${e.external_card_id}::${e.variation_type.toLowerCase()}`)
     );
     targetName = purchase.official_set_name as string;
-    missing = cards.flatMap((c) =>
+    missing = [...cards]
+      .sort((a, b) => compareCardNumbers(a.number, b.number))
+      .flatMap((c) =>
       cardVariations(c)
         .filter((v) => !ownedKeys.has(`${c.id}::${v.label.toLowerCase()}`))
         .map((v) => ({
