@@ -3,7 +3,9 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isCurrentUserAdmin } from "@/lib/admin";
+import { supplementalCardId } from "@/lib/supplementalCards";
 import { getCard, getCardsByIds, cardVariations } from "@/lib/pokemontcg";
 import { refreshMasterSetFromSavedQueries } from "@/lib/fulfillMastersetPurchase";
 import type { MasterSetCard } from "@/types";
@@ -64,17 +66,46 @@ export async function addManualCardToMasterSet(formData: FormData) {
 
   const marketPriceRaw = formData.get("marketPrice");
   const marketPrice = marketPriceRaw ? Number(marketPriceRaw) : null;
+  const printedTotalRaw = Number(formData.get("setPrintedTotal"));
 
-  const { error } = await supabase.from("master_set_cards").insert({
-    master_set_id: masterSetId,
-    external_card_id: `manual-${crypto.randomUUID()}`,
-    external_source: "manual",
+  const fields = {
     variation_type: String(formData.get("variationType") || "") || "Normal",
     card_name: name,
     set_name: String(formData.get("setName") || "") || null,
     card_number: String(formData.get("cardNumber") || "") || null,
     image_url: String(formData.get("imageUrl") || "") || null,
     market_price: marketPrice != null && !Number.isNaN(marketPrice) ? marketPrice : null,
+  };
+
+  // Optionally also save it to the shared promo catalog, so any master set
+  // whose name/type/artist query matches it picks it up automatically from
+  // now on (see supplementalCards.ts). The checklist row then uses the
+  // catalog's id, so a later auto-add of the same card dedupes against it.
+  let externalCardId = `manual-${crypto.randomUUID()}`;
+  if (formData.get("shareToCatalog") === "on") {
+    const artist = String(formData.get("artist") || "").trim() || null;
+    const type = String(formData.get("type") || "").trim();
+    const { data: shared, error: sharedError } = await createAdminClient()
+      .from("supplemental_cards")
+      .insert({
+        ...fields,
+        set_printed_total: Number.isInteger(printedTotalRaw) && printedTotalRaw > 0 ? printedTotalRaw : null,
+        artist,
+        types: type ? [type] : [],
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+    if (sharedError || !shared) throw new Error(sharedError?.message ?? "Couldn't save to the promo catalog");
+    externalCardId = supplementalCardId(shared.id);
+  }
+
+  const { error } = await supabase.from("master_set_cards").insert({
+    master_set_id: masterSetId,
+    external_card_id: externalCardId,
+    external_source: "manual",
+    ...fields,
+    set_printed_total: Number.isInteger(printedTotalRaw) && printedTotalRaw > 0 ? printedTotalRaw : null,
     added_via: "manual",
   });
 

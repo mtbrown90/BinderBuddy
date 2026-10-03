@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { isCurrentUserAdmin } from "@/lib/admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { AdminUserRow } from "@/types";
+import { listSupplementalCards } from "@/lib/supplementalCards";
 import AdminUserTable from "./AdminUserTable";
+import PromoCatalog from "./PromoCatalog";
 
 export default async function AdminPage() {
   if (!(await isCurrentUserAdmin())) redirect("/");
@@ -41,10 +43,14 @@ export default async function AdminPage() {
     };
   });
 
+  const promoCards = await listSupplementalCards(admin);
+
   return (
     <div>
       <h1 className="font-semibold text-lg mb-1">Admin</h1>
-      <p className="text-sm text-muted mb-5">Manage user accounts.</p>
+      <p className="text-sm text-muted mb-5">Manage the promo catalog and user accounts.</p>
+      <PromoCatalog cards={promoCards} />
+      <h2 className="font-semibold text-sm mb-3">Users</h2>
       <AdminUserTable users={users} />
     </div>
   );

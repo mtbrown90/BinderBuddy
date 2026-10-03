@@ -57,6 +57,18 @@ export async function toggleLifetimeFree(userId: string, enabled: boolean) {
   revalidatePath("/admin");
 }
 
+// Removes a card from the shared promo catalog so future purchases and
+// "Check for new cards" stop including it. Master sets that already picked
+// it up keep their checklist row — this doesn't reach into existing sets.
+export async function deleteSupplementalCard(id: string) {
+  if (!(await isCurrentUserAdmin())) throw new Error("Admins only");
+
+  const { error } = await createAdminClient().from("supplemental_cards").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
+
 // Uses Supabase Auth's native ban mechanism — enforced at the session
 // layer (a banned user can't sign in or refresh a session at all), not
 // just an app-code convention. There's no literal "forever" duration, so

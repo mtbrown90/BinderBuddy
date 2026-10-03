@@ -3,10 +3,12 @@
 import { useState, useTransition } from "react";
 import { ShieldPlus } from "lucide-react";
 import { VARIATION_TYPES } from "@/types";
+import { POKEMON_TYPES } from "@/lib/pokemontcg";
 import { addManualCardToMasterSet } from "./actions";
 
 export default function ManualCardForm({ masterSetId }: { masterSetId: string }) {
   const [open, setOpen] = useState(false);
+  const [shareToCatalog, setShareToCatalog] = useState(true);
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
@@ -42,20 +44,30 @@ export default function ManualCardForm({ masterSetId }: { masterSetId: string })
           className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
         />
       </label>
+      <label className="flex flex-col gap-1.5 text-xs text-muted">
+        Set / promo name
+        <input
+          name="setName"
+          placeholder="e.g. Burger King Promos"
+          className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+        />
+      </label>
       <div className="grid grid-cols-2 gap-3">
-        <label className="flex flex-col gap-1.5 text-xs text-muted">
-          Set / promo name
-          <input
-            name="setName"
-            placeholder="e.g. Burger King Promos"
-            className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
-          />
-        </label>
         <label className="flex flex-col gap-1.5 text-xs text-muted">
           Card number
           <input
             name="cardNumber"
             placeholder="e.g. 6"
+            className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+          />
+        </label>
+        <label className="flex flex-col gap-1.5 text-xs text-muted">
+          Printed total (optional)
+          <input
+            name="setPrintedTotal"
+            type="number"
+            min={1}
+            placeholder="e.g. 131"
             className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
           />
         </label>
@@ -95,6 +107,49 @@ export default function ManualCardForm({ masterSetId }: { masterSetId: string })
           />
         </label>
       </div>
+      <label className="flex items-start gap-2 text-xs text-ink">
+        <input
+          name="shareToCatalog"
+          type="checkbox"
+          checked={shareToCatalog}
+          onChange={(e) => setShareToCatalog(e.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          Also add to the shared promo catalog
+          <span className="block text-[11px] text-muted">
+            Any master set whose Pokémon name / type / artist search matches this card will include it
+            automatically from now on — new purchases, and &quot;Check for new cards&quot; on existing sets.
+          </span>
+        </span>
+      </label>
+      {shareToCatalog && (
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1.5 text-xs text-muted">
+            Artist (optional)
+            <input
+              name="artist"
+              placeholder="so artist searches match it"
+              className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-xs text-muted">
+            Energy type (optional)
+            <select
+              name="type"
+              defaultValue=""
+              className="bg-panel border border-border rounded-lg px-3 py-2 text-ink text-sm"
+            >
+              <option value="">None</option>
+              {POKEMON_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
       <div className="flex gap-2 mt-1">
         <button
           type="button"

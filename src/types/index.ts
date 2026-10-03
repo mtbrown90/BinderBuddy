@@ -207,6 +207,22 @@ export type Message = {
   author_username: string | null;
 };
 
+// A real card pokemontcg.io doesn't list, added once by an admin and then
+// picked up by any master set query it matches (see supplementalCards.ts).
+export type SupplementalCard = {
+  id: string;
+  card_name: string;
+  set_name: string | null;
+  card_number: string | null;
+  set_printed_total: number | null;
+  variation_type: string;
+  image_url: string | null;
+  market_price: number | null;
+  artist: string | null;
+  types: string[];
+  created_at: string;
+};
+
 // Not a DB-mirrored type — built server-side in src/app/admin/page.tsx by
 // merging auth.admin.listUsers() with the profiles table.
 export type AdminUserRow = {

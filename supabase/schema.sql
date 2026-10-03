@@ -154,6 +154,28 @@ create table master_set_cards (
 
 create index idx_master_set_cards_set on master_set_cards(master_set_id);
 
+-- ---------- Shared promo catalog ----------
+-- Real cards pokemontcg.io doesn't list (stamped promos, retail
+-- exclusives, ...) that an admin adds once; any master set query
+-- (name/type/artist) that matches one picks it up automatically, on new
+-- purchases and on "Check for new cards". Readable by everyone signed in
+-- (their own client runs that refresh); written only via admin-gated
+-- server actions using the service role, so no write policies.
+create table supplemental_cards (
+    id                uuid primary key default gen_random_uuid(),
+    card_name         text not null,
+    set_name          text,
+    card_number       text,
+    set_printed_total integer,
+    variation_type    text not null default 'Normal',
+    image_url         text,
+    market_price      numeric(10,2),
+    artist            text,
+    types             text[] not null default '{}',
+    created_by        uuid references auth.users(id) on delete set null,
+    created_at        timestamptz not null default now()
+);
+
 -- ---------- Master set auto-populate queries ----------
 -- Records which name searches (e.g. "Piplup") were used to auto-populate a
 -- master set via the paid auto-populate feature — provenance for display
@@ -507,6 +529,7 @@ alter table master_set_queries enable row level security;
 alter table collection_entries enable row level security;
 alter table masterset_purchases enable row level security;
 alter table masterset_pdf_purchases enable row level security;
+alter table supplemental_cards enable row level security;
 alter table discussion_categories enable row level security;
 alter table discussion_threads enable row level security;
 alter table discussion_replies enable row level security;
@@ -556,6 +579,9 @@ create policy "read own purchases" on masterset_purchases
   for select using (auth.uid() = user_id);
 create policy "create own purchases" on masterset_purchases
   for insert with check (auth.uid() = user_id);
+
+create policy "read supplemental cards" on supplemental_cards
+  for select to authenticated using (true);
 
 create policy "read own pdf purchases" on masterset_pdf_purchases
   for select using (auth.uid() = user_id);

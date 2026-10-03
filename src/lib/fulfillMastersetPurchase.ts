@@ -6,6 +6,11 @@ import {
   cardVariations,
   type PokemonCard,
 } from "@/lib/pokemontcg";
+import {
+  listSupplementalCards,
+  supplementalMatchesQuery,
+  supplementalToChecklistRow,
+} from "@/lib/supplementalCards";
 
 // Accepts either the service-role admin client (webhook, admin-free
 // checkout bypass — no user session to scope by) or a regular signed-in
@@ -35,12 +40,8 @@ async function fetchCardsForQuery(entry: string): Promise<PokemonCard[]> {
   }
 }
 
-// Returns how many rows were actually new — an upsert with ignoreDuplicates
-// only RETURNs the rows it inserted (conflicting ones are silently
-// skipped), so chaining .select() on it doubles as a free "how many were
-// new" count.
-async function upsertCardRows(client: AnySupabaseClient, masterSetId: string, cards: PokemonCard[]): Promise<number> {
-  const rows = cards.flatMap((c) =>
+function checklistRowsFromCards(masterSetId: string, cards: PokemonCard[]) {
+  return cards.flatMap((c) =>
     cardVariations(c).map((v) => ({
       master_set_id: masterSetId,
       external_card_id: c.id,
@@ -56,7 +57,16 @@ async function upsertCardRows(client: AnySupabaseClient, masterSetId: string, ca
       added_via: "auto_purchase" as const,
     }))
   );
+}
 
+// Returns how many rows were actually new — an upsert with ignoreDuplicates
+// only RETURNs the rows it inserted (conflicting ones are silently
+// skipped), so chaining .select() on it doubles as a free "how many were
+// new" count.
+async function upsertChecklistRows(
+  client: AnySupabaseClient,
+  rows: Record<string, unknown>[]
+): Promise<number> {
   let insertedCount = 0;
   // A type or artist purchase can be thousands of rows — chunk the upsert
   // so it stays well under any request-size limit.
@@ -71,6 +81,23 @@ async function upsertCardRows(client: AnySupabaseClient, masterSetId: string, ca
   return insertedCount;
 }
 
+// Everything one query should add: the pokemontcg.io matches plus any
+// admin-added promo catalog cards (see supplementalCards.ts) that match it.
+async function rowsForQuery(
+  client: AnySupabaseClient,
+  masterSetId: string,
+  entry: string,
+  supplemental: Awaited<ReturnType<typeof listSupplementalCards>>
+) {
+  const cards = await fetchCardsForQuery(entry);
+  return [
+    ...checklistRowsFromCards(masterSetId, cards),
+    ...supplemental
+      .filter((s) => supplementalMatchesQuery(s, entry))
+      .map((s) => supplementalToChecklistRow(masterSetId, s)),
+  ];
+}
+
 // Shared by the Stripe webhook (after a real payment) and the admin free-
 // access bypass (no payment at all) — both need the exact same "fetch
 // these queries from pokemontcg.io and add the cards" behavior, and both
@@ -81,11 +108,13 @@ export async function fulfillMastersetPurchase(
   masterSetId: string,
   queryNames: string[]
 ) {
-  for (const entry of queryNames) {
-    const cards = await fetchCardsForQuery(entry);
-    if (cards.length === 0) continue;
+  const supplemental = await listSupplementalCards(client);
 
-    await upsertCardRows(client, masterSetId, cards);
+  for (const entry of queryNames) {
+    const rows = await rowsForQuery(client, masterSetId, entry, supplemental);
+    if (rows.length === 0) continue;
+
+    await upsertChecklistRows(client, rows);
 
     await client.from("master_set_queries").insert({
       master_set_id: masterSetId,
@@ -95,7 +124,8 @@ export async function fulfillMastersetPurchase(
 }
 
 // Re-runs every query this master set was ever auto-populated from (e.g.
-// "every card named Piplup") and adds anything that newly matches — for
+// "every card named Piplup") and adds anything that newly matches — new
+// pokemontcg.io releases and newly added promo catalog cards alike — for
 // free, no new purchase row, since the user already paid for this query
 // once. Doesn't touch master_set_queries itself (those rows already exist
 // from the original purchase), so repeated checks don't accumulate
@@ -107,12 +137,13 @@ export async function refreshMasterSetFromSavedQueries(client: AnySupabaseClient
     .eq("master_set_id", masterSetId);
 
   const queryNames = [...new Set((queryRows ?? []).map((r) => r.query_name as string))];
+  const supplemental = await listSupplementalCards(client);
 
   let addedCount = 0;
   for (const entry of queryNames) {
-    const cards = await fetchCardsForQuery(entry);
-    if (cards.length === 0) continue;
-    addedCount += await upsertCardRows(client, masterSetId, cards);
+    const rows = await rowsForQuery(client, masterSetId, entry, supplemental);
+    if (rows.length === 0) continue;
+    addedCount += await upsertChecklistRows(client, rows);
   }
   return addedCount;
 }
