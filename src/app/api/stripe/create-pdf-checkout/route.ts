@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { PLACEHOLDER_PDF_PRICE_CENTS, PLACEHOLDER_PDF_ALL_STYLES_PRICE_CENTS } from "@/lib/pricing";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 const STYLE_LABELS: Record<string, string> = {
   color: "full color",
@@ -64,6 +65,23 @@ export async function POST(req: NextRequest) {
     insertRow.official_set_name = officialSetName;
   }
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
+  const redirectPath = masterSetId ? `/sets/master/${masterSetId}` : `/sets/${officialSetId}`;
+
+  // Admins skip Stripe entirely — the PDF is generated fresh at download
+  // time regardless (see masterset-pdf/[purchaseId]/route.ts), so there's
+  // nothing to fulfill beyond marking the purchase completed.
+  if (await isCurrentUserAdmin()) {
+    const admin = createAdminClient();
+    const { error: freeError } = await admin
+      .from("masterset_pdf_purchases")
+      .insert({ ...insertRow, amount_cents: 0, status: "completed", completed_at: new Date().toISOString() });
+    if (freeError) {
+      return NextResponse.json({ error: freeError.message }, { status: 500 });
+    }
+    return NextResponse.json({ url: `${appUrl}${redirectPath}?checkout=success` });
+  }
+
   const { data: purchase, error } = await supabase
     .from("masterset_pdf_purchases")
     .insert(insertRow)
@@ -73,9 +91,6 @@ export async function POST(req: NextRequest) {
   if (error || !purchase) {
     return NextResponse.json({ error: error?.message ?? "Could not start checkout" }, { status: 500 });
   }
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
-  const redirectPath = masterSetId ? `/sets/master/${masterSetId}` : `/sets/${officialSetId}`;
 
   try {
     const stripe = getStripe();

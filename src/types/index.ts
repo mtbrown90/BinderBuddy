@@ -218,6 +218,7 @@ export type AdminUserRow = {
   is_restricted: boolean;
   banned: boolean;
   beta_trial_eligible: boolean;
+  lifetime_free: boolean;
 };
 
 // Per-viewer attendance data for one event — not a DB-mirrored row shape,

@@ -44,13 +44,15 @@ export default function SubscriptionPanel({
       <div className="flex flex-col gap-2">
         <p className="text-sm text-muted">You have unlimited master sets.</p>
         {error && <p className="text-bad text-sm">{error}</p>}
-        <button
-          onClick={() => go("/api/stripe/create-portal-session", "portal")}
-          disabled={pending !== null}
-          className="bg-panel-2 border border-border rounded-lg py-2 text-sm font-semibold disabled:opacity-60 self-start px-4"
-        >
-          {pending === "portal" ? "Opening…" : "Manage subscription"}
-        </button>
+        {hasBillingHistory && (
+          <button
+            onClick={() => go("/api/stripe/create-portal-session", "portal")}
+            disabled={pending !== null}
+            className="bg-panel-2 border border-border rounded-lg py-2 text-sm font-semibold disabled:opacity-60 self-start px-4"
+          >
+            {pending === "portal" ? "Opening…" : "Manage subscription"}
+          </button>
+        )}
       </div>
     );
   }

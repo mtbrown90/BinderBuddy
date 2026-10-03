@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
 import { autoPopulatePriceCents, BULK_AUTOPOPULATE_PRICE_CENTS } from "@/lib/pricing";
 import { POKEMON_TYPES } from "@/lib/pokemontcg";
+import { isCurrentUserAdmin } from "@/lib/admin";
+import { fulfillMastersetPurchase } from "@/lib/fulfillMastersetPurchase";
 
 // A purchase is one of: a list of Pokémon names, a single energy type, or a
 // single artist. The latter two are stored as a single-element query_names
@@ -51,6 +53,33 @@ export async function POST(req: NextRequest) {
   const isBulk = Boolean(type || artist);
   const amountCents = isBulk ? BULK_AUTOPOPULATE_PRICE_CENTS : autoPopulatePriceCents(queryNames.length);
   const storedQueryNames = type ? [`type:${type}`] : artist ? [`artist:${artist}`] : queryNames;
+
+  // Admins skip Stripe entirely — the purchase row is inserted already
+  // completed (via the admin client; a regular INSERT can never set
+  // status itself) and fulfilled synchronously, same work the webhook
+  // would otherwise do after a real payment.
+  if (await isCurrentUserAdmin()) {
+    const admin = createAdminClient();
+    const { data: freePurchase, error: freeError } = await admin
+      .from("masterset_purchases")
+      .insert({
+        user_id: user.id,
+        master_set_id: masterSetId,
+        amount_cents: 0,
+        query_names: storedQueryNames,
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+    if (freeError || !freePurchase) {
+      return NextResponse.json({ error: freeError?.message ?? "Could not auto-populate" }, { status: 500 });
+    }
+    await fulfillMastersetPurchase(admin, masterSetId, storedQueryNames);
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
+    return NextResponse.json({ url: `${appUrl}/sets/master/${masterSetId}?checkout=success` });
+  }
+
   const productDescription = type
     ? `Add every official ${type}-type card`
     : artist

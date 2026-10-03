@@ -36,7 +36,11 @@ create table profiles (
     -- Admin-only: marks an account eligible for the beta free-trial period
     -- on the unlimited-master-sets subscription (trial runs until a fixed
     -- date, not a rolling duration — see create-subscription-checkout).
-    beta_trial_eligible boolean not null default false
+    beta_trial_eligible boolean not null default false,
+    -- Admin-only: permanent, no-billing unlimited access — an alternative
+    -- to the beta trial above rather than a subscription state, so it's
+    -- never touched by the Stripe webhook.
+    lifetime_free boolean not null default false
 );
 
 alter table profiles add constraint profiles_username_format
@@ -77,9 +81,10 @@ create function get_own_subscription_info()
 returns table (
   subscription_status text,
   stripe_customer_id text,
-  beta_trial_eligible boolean
+  beta_trial_eligible boolean,
+  lifetime_free boolean
 ) as $$
-  select subscription_status, stripe_customer_id, beta_trial_eligible
+  select subscription_status, stripe_customer_id, beta_trial_eligible, lifetime_free
   from profiles
   where id = auth.uid();
 $$ language sql security definer set search_path = public stable;

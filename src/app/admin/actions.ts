@@ -43,6 +43,20 @@ export async function toggleBetaTrialEligible(userId: string, eligible: boolean)
   revalidatePath("/admin");
 }
 
+// Permanent, no-billing unlimited access — an alternative to the beta
+// trial above rather than a step toward one: granting this takes effect
+// immediately (read by getMasterSetLimitInfo), there's no checkout and
+// nothing ever bills. Self-action allowed, same reasoning as the trial.
+export async function toggleLifetimeFree(userId: string, enabled: boolean) {
+  if (!(await isCurrentUserAdmin())) throw new Error("Admins only");
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("profiles").update({ lifetime_free: enabled }).eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
+
 // Uses Supabase Auth's native ban mechanism — enforced at the session
 // layer (a banned user can't sign in or refresh a session at all), not
 // just an app-code convention. There's no literal "forever" duration, so

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getStripe } from "@/lib/stripe";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 // $4.99/month or $49.99/year for unlimited master sets. Priced inline
 // (recurring price_data) rather than a pre-made Stripe Price object, same
@@ -24,6 +25,14 @@ export async function POST(req: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Admins already have unlimited access without a subscription (see
+  // getMasterSetLimitInfo) — the Subscribe panel hides this button for
+  // them, but guard the endpoint itself too.
+  if (await isCurrentUserAdmin()) {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? req.nextUrl.origin;
+    return NextResponse.json({ url: `${appUrl}/sets/master/new?checkout=success` });
   }
 
   const body = await req.json().catch(() => null);

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isCurrentUserAdmin } from "@/lib/admin";
 
 // Statuses that count as "unlimited access" — everything else (past_due,
 // canceled, unpaid, incomplete_expired, ...) falls back to the free-tier
@@ -30,13 +31,19 @@ export async function getMasterSetLimitInfo(
   // goes through the security-definer RPC instead. It always reflects the
   // signed-in session (auth.uid()), which matches every caller of this
   // function passing their own id anyway.
-  const [{ count: ownedCount }, { data: profileRows }] = await Promise.all([
+  const [{ count: ownedCount }, { data: profileRows }, isAdmin] = await Promise.all([
     supabase.from("master_sets").select("id", { count: "exact", head: true }).eq("user_id", userId),
     supabase.rpc("get_own_subscription_info"),
+    isCurrentUserAdmin(),
   ]);
   const profile = profileRows?.[0];
 
-  const unlimited = UNLIMITED_STATUSES.has(profile?.subscription_status ?? "");
+  // Admins get full free access everywhere in the Store (see the Stripe
+  // checkout routes' own admin bypass); lifetime_free is the equivalent
+  // permanent grant for a non-admin account, set by an admin in /admin as
+  // an alternative to the beta trial (which still eventually bills).
+  const unlimited =
+    isAdmin || profile?.lifetime_free === true || UNLIMITED_STATUSES.has(profile?.subscription_status ?? "");
   const owned = ownedCount ?? 0;
 
   return {
